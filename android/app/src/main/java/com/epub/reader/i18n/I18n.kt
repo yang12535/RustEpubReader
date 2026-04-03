@@ -2,19 +2,20 @@ package com.zhongbai233.epub.reader.i18n
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.json.JSONObject
 import com.zhongbai233.epub.reader.RustBridge
 import java.util.Locale
 
 object I18n {
-    var currentCode: String = "zh_cn"
+    var currentCode: String by mutableStateOf("zh_cn")
         private set
 
-    var isAuto: Boolean = true
+    var isAuto: Boolean by mutableStateOf(true)
         private set
 
-    private var translations: Map<String, String> = emptyMap()
+    private var translations: Map<String, String> by mutableStateOf(emptyMap())
 
     var version: Int by mutableIntStateOf(0)
         private set

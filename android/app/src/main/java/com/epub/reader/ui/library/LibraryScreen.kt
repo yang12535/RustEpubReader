@@ -337,9 +337,8 @@ private fun BookCard(
                     .weight(1f)
                     .fillMaxHeight()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = entry.title,
                         fontSize = 15.sp,
@@ -352,11 +351,16 @@ private fun BookCard(
                     Text(
                         text = I18n.tf1("library.last_read_chapter", entry.lastChapterTitle ?: "${entry.lastChapter + 1}"),
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Button(
                         onClick = onClick,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),

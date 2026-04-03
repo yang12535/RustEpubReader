@@ -653,6 +653,10 @@ private fun PageModeContent(
         }
     )
 
+    // rememberPageCurlConfig uses rememberSaveable internally, so the initial
+    // backPageColor is only applied once.  Force-sync whenever bgColor changes.
+    pageCurlConfig.backPageColor = bgColor
+
     // 章节切换时重置页码
     LaunchedEffect(currentChapter, pageAnimation) {
         val isRealChapterChange = prevChapterKey != currentChapter

@@ -30,9 +30,16 @@ class Library(private val context: Context) {
             if (payload.isNullOrBlank()) {
                 mutableListOf()
             } else {
-                json.decodeFromString<List<BookEntry>>(payload).toMutableList()
+                val result = json.decodeFromString<List<BookEntry>>(payload).toMutableList()
+                result.forEach { e ->
+                    android.util.Log.d("READER-RESUME",
+                        "Library.load: title=${e.title} lastChapter=${e.lastChapter} " +
+                            "lastChapterTitle=${e.lastChapterTitle} configPath=${e.configPath}")
+                }
+                result
             }
-        } catch (_: Exception) {
+        } catch (ex: Exception) {
+            android.util.Log.e("READER-RESUME", "Library.load FAILED: ${ex.message}", ex)
             mutableListOf()
         }
     }

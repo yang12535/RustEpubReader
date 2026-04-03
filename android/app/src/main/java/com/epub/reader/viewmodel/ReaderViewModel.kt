@@ -370,6 +370,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun openFromPath(filePath: String, chapter: Int = 0) {
+        android.util.Log.d("READER-RESUME", "openFromPath path=$filePath chapter=$chapter")
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
@@ -391,29 +392,30 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun resolveStartChapter(filePath: String, chapter: Int): Int {
         val requested = chapter.coerceAtLeast(0)
-        val entry = library.books.firstOrNull { it.uri == filePath } ?: return requested
+        val entry = library.books.firstOrNull { it.uri == filePath }
+        val fromLibrary = entry?.lastChapter?.coerceAtLeast(0) ?: 0
 
-        // Prefer the larger of requested/library chapter to avoid regressing progress.
-        val merged = maxOf(requested, entry.lastChapter).coerceAtLeast(0)
-        if (merged > 0) {
-            return merged
-        }
+        // Source 2: per-book SharedPreferences (simple int, no serialization)
+        val bookId = entry?.id ?: ""
+        val fromPrefs = if (bookId.isNotEmpty()) {
+            prefs.getInt("book_ch_$bookId", 0)
+        } else 0
 
-        // Edge-case fallback: if chapter title exists but chapter index is unexpectedly 0,
-        // attempt reading the per-book config for authoritative last_chapter.
-        if (entry.lastChapterTitle.isNullOrBlank()) {
-            return merged
-        }
-        val cfgPath = entry.configPath ?: return merged
+        // Source 3: Rust-written book config file (raw JSON, bypasses kotlinx.serialization)
+        val fromConfig = entry?.configPath?.let { cfgPath ->
+            runCatching {
+                val cfgFile = File(cfgPath)
+                if (!cfgFile.exists()) return@runCatching 0
+                val jsonObj = org.json.JSONObject(cfgFile.readText())
+                jsonObj.optInt("last_chapter", 0)
+            }.getOrDefault(0)
+        } ?: 0
 
-        return runCatching {
-            val cfgFile = File(cfgPath)
-            if (!cfgFile.exists()) {
-                return@runCatching merged
-            }
-            val cfg = jsonParser.decodeFromString<BookConfig>(cfgFile.readText())
-            cfg.lastChapter.coerceAtLeast(0)
-        }.getOrDefault(merged)
+        val resolved = maxOf(requested, fromLibrary, fromPrefs, fromConfig)
+        android.util.Log.d("READER-RESUME",
+            "resolveStartChapter path=$filePath requested=$requested " +
+                "fromLibrary=$fromLibrary fromPrefs=$fromPrefs fromConfig=$fromConfig => $resolved")
+        return resolved
     }
 
     private suspend fun parseAndOpen(file: File, startChapter: Int = 0) {
@@ -470,6 +472,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         currentBookUri = managedPath
         currentChapter = startChapter.coerceIn(0, (book.chapters.size - 1).coerceAtLeast(0))
         currentPage = 0
+        android.util.Log.d("READER-RESUME",
+            "parseAndOpen startChapter=$startChapter chapterCount=${book.chapters.size} => currentChapter=$currentChapter")
 
         val chapterTitle = try {
             book.chapters[currentChapter].title
@@ -483,6 +487,11 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit()
             .putString(PrefKeys.LAST_BOOK_URI, persistedEntry.uri)
             .putInt(PrefKeys.LAST_BOOK_CHAPTER, currentChapter)
+            .apply {
+                if (persistedEntry.id.isNotEmpty()) {
+                    putInt("book_ch_${persistedEntry.id}", currentChapter)
+                }
+            }
             .apply()
 
         loadLibrary()
@@ -614,6 +623,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun closeBook() {
         val closingUri = currentBookUri
+        android.util.Log.d("READER-RESUME", "closeBook uri=$closingUri currentChapter=$currentChapter")
         saveProgress()
         if (closingUri != null) {
             clearLastBookIfMatches(closingUri)
@@ -630,7 +640,16 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             currentBook?.chapters?.get(currentChapter)?.title
         } catch (_: Exception) { null }
         library.updateChapter(uri, currentChapter, chapterTitle)
-        prefs.edit().putInt(PrefKeys.LAST_BOOK_CHAPTER, currentChapter).apply()
+
+        // Write chapter to SharedPreferences: global key + per-book key (resilient backup)
+        val bookId = library.books.firstOrNull { it.uri == uri }?.id
+        prefs.edit().apply {
+            putInt(PrefKeys.LAST_BOOK_CHAPTER, currentChapter)
+            if (bookId != null) {
+                putInt("book_ch_$bookId", currentChapter)
+            }
+        }.apply()
+
         loadLibrary()
     }
 
