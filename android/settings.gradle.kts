@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "EpubReader"
 include(":app")
+include(":pagecurl")

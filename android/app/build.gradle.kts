@@ -90,8 +90,8 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    // Realistic page curl animation (Jetpack Compose)
-    implementation("io.github.oleksandrbalan:pagecurl:1.5.1")
+    // Realistic page curl animation (vendored source for customization)
+    implementation(project(":pagecurl"))
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

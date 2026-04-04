@@ -575,6 +575,7 @@ private fun PageModeContent(
     val pagerState = rememberPagerState(pageCount = { totalSlots })
     val pageCurlState = rememberPageCurlState()
     val bookSpreadState = com.epub.reader.ui.pagecurl.rememberBookSpreadState()
+    val bookSpreadPageCurlState = rememberPageCurlState()
     val isBookSpread = isTwoColumn && pageAnimation == "Realistic"
     val coroutineScope = rememberCoroutineScope()
     // 初始值 true：防止首次挂载时边界检测意外触发
@@ -670,6 +671,53 @@ private fun PageModeContent(
     // backPageColor is only applied once.  Force-sync whenever bgColor changes.
     pageCurlConfig.backPageColor = bgColor
 
+    // ─── Book Spread 3D PageCurl Config ───
+    val bookSpreadCurlConfig = rememberPageCurlConfig(
+        isBookSpread = true,
+        backPageColor = bgColor,
+        backPageContentAlpha = 0.25f,
+        shadowAlpha = 0.35f,
+        onCustomTap = { size, position ->
+            if (currentSettingsVisible) return@rememberPageCurlConfig true
+            val chromeInset = size.height * 0.12f
+            if (currentControlsVisible) {
+                if (position.y < chromeInset || position.y > size.height - chromeInset) {
+                    return@rememberPageCurlConfig true
+                }
+                currentOnToggleControls()
+                return@rememberPageCurlConfig true
+            }
+            val tapZone = size.width / 3f
+            when {
+                position.x < tapZone -> {
+                    val now = System.currentTimeMillis()
+                    if (now - lastFlipTime.longValue < flipCooldownMs) return@rememberPageCurlConfig true
+                    lastFlipTime.longValue = now
+                    if (bookSpreadPageCurlState.current > 0) {
+                        flipJob?.cancel()
+                        flipJob = coroutineScope.launch { bookSpreadPageCurlState.prev() }
+                    }
+                    true
+                }
+                position.x > size.width - tapZone -> {
+                    val now = System.currentTimeMillis()
+                    if (now - lastFlipTime.longValue < flipCooldownMs) return@rememberPageCurlConfig true
+                    lastFlipTime.longValue = now
+                    if (bookSpreadPageCurlState.current < totalSlots - 1) {
+                        flipJob?.cancel()
+                        flipJob = coroutineScope.launch { bookSpreadPageCurlState.next() }
+                    }
+                    true
+                }
+                else -> {
+                    currentOnToggleControls()
+                    true
+                }
+            }
+        }
+    )
+    bookSpreadCurlConfig.backPageColor = bgColor
+
     // 章节切换时重置页码
     LaunchedEffect(currentChapter, pageAnimation) {
         val isRealChapterChange = prevChapterKey != currentChapter
@@ -695,7 +743,7 @@ private fun PageModeContent(
             }
             isRealChapterChange && pageAnimation == "Realistic" -> {
                 if (isBookSpread) {
-                    bookSpreadState.snapTo(targetSlot)
+                    bookSpreadPageCurlState.snapTo(targetSlot)
                 } else {
                     pageCurlState.snapTo(targetSlot)
                 }
@@ -713,7 +761,7 @@ private fun PageModeContent(
             else -> {
                 chapterAlpha.snapTo(1f)
                 if (isBookSpread) {
-                    bookSpreadState.snapTo(targetSlot)
+                    bookSpreadPageCurlState.snapTo(targetSlot)
                 } else if (pageAnimation == "Realistic") {
                     pageCurlState.snapTo(targetSlot)
                 } else if (pagerState.currentPage != targetSlot) {
@@ -729,7 +777,7 @@ private fun PageModeContent(
     // 翻页到边界时，自动跨章节
     LaunchedEffect(currentChapter, pageAnimation, hasPrevChapter, hasNextChapter, totalSlots, isBookSpread) {
         if (isBookSpread) {
-            snapshotFlow { bookSpreadState.current }
+            snapshotFlow { bookSpreadPageCurlState.current }
                 .collect { currentSpread ->
                     if (!chapterJumpTriggered) {
                         if (hasPrevChapter && currentSpread <= 0) {
@@ -846,54 +894,13 @@ private fun PageModeContent(
     ) {
         if (isBookSpread) {
             // ─── 双列书脊翻页模式（平板专用）───
-            com.epub.reader.ui.pagecurl.BookSpreadCurl(
+            PageCurl(
                 count = totalSlots,
-                state = bookSpreadState,
+                state = bookSpreadPageCurlState,
+                config = bookSpreadCurlConfig,
                 modifier = Modifier
                     .weight(1f)
                     .background(bgColor),
-                backPageColor = bgColor,
-                backPageContentAlpha = 0.25f,
-                shadowAlpha = 0.35f,
-                onCustomTap = { size, position ->
-                    if (currentSettingsVisible) return@BookSpreadCurl
-                    val chromeInset = size.height * 0.12f
-                    if (currentControlsVisible) {
-                        if (position.y < chromeInset || position.y > size.height - chromeInset) {
-                            return@BookSpreadCurl
-                        }
-                        currentOnToggleControls()
-                        return@BookSpreadCurl
-                    }
-                    val tapZone = size.width / 3f
-                    when {
-                        position.x < tapZone -> {
-                            val now = System.currentTimeMillis()
-                            if (now - lastFlipTime.longValue < flipCooldownMs) return@BookSpreadCurl
-                            lastFlipTime.longValue = now
-                            if (bookSpreadState.current <= 0) {
-                                // Already at the very beginning of the book
-                            } else {
-                                flipJob?.cancel()
-                                flipJob = coroutineScope.launch { bookSpreadState.prev() }
-                            }
-                        }
-                        position.x > size.width - tapZone -> {
-                            val now = System.currentTimeMillis()
-                            if (now - lastFlipTime.longValue < flipCooldownMs) return@BookSpreadCurl
-                            lastFlipTime.longValue = now
-                            if (bookSpreadState.current >= totalSlots - 1) {
-                                // Already at the very end of the book
-                            } else {
-                                flipJob?.cancel()
-                                flipJob = coroutineScope.launch { bookSpreadState.next() }
-                            }
-                        }
-                        else -> {
-                            currentOnToggleControls()
-                        }
-                    }
-                },
             ) { spreadIndex ->
                 val actualSpreadIndex = spreadIndex - leadingVirtual
                 val isLeadingVirtual = leadingVirtual > 0 && actualSpreadIndex < 0
