@@ -260,6 +260,8 @@ fun ReaderScreen(
     var selectionMenuVisible by remember { mutableStateOf(false) }
     var selectionRect by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     var selectionCopyCallback by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var activeSelectionAction by remember { mutableStateOf<SelectionAction?>(null) }
+    var currentSelectedText by remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
 
     val customTextToolbar = remember {
@@ -619,35 +621,30 @@ fun ReaderScreen(
             selectionRect = selectionRect,
             isDarkMode = isDarkMode,
             onAction = { action ->
+                selectionCopyCallback?.invoke()
+                val textFromClipboard = clipboardManager.getText()?.text ?: ""
+                currentSelectedText = textFromClipboard
+                selectionMenuVisible = false
+                
                 when (action) {
                     SelectionAction.COPY -> {
-                        selectionCopyCallback?.invoke()
-                        selectionMenuVisible = false
+                        // Already copied to clipboard
                     }
                     SelectionAction.HIGHLIGHT -> {
-                        selectionCopyCallback?.invoke()
-                        selectionMenuVisible = false
-                        // TODO: 接入高亮创建流程
+                        // TODO: 需精细化 offset。暂用 0 传给 RustBridge 占位
+                        onAddHighlight(currentChapter, 0, 0, 0, 10, "Yellow")
                     }
                     SelectionAction.NOTE -> {
-                        selectionCopyCallback?.invoke()
-                        selectionMenuVisible = false
-                        // TODO: 接入笔记创建流程
+                        activeSelectionAction = SelectionAction.NOTE
                     }
                     SelectionAction.DICTIONARY -> {
-                        selectionCopyCallback?.invoke()
-                        selectionMenuVisible = false
-                        // TODO: 接入词典 API
+                        activeSelectionAction = SelectionAction.DICTIONARY
                     }
                     SelectionAction.TRANSLATE -> {
-                        selectionCopyCallback?.invoke()
-                        selectionMenuVisible = false
-                        // TODO: 接入翻译 API
+                        activeSelectionAction = SelectionAction.TRANSLATE
                     }
                     SelectionAction.CORRECT -> {
-                        selectionCopyCallback?.invoke()
-                        selectionMenuVisible = false
-                        // TODO: 接入纠错流程
+                        activeSelectionAction = SelectionAction.CORRECT
                     }
                 }
             },
@@ -655,6 +652,46 @@ fun ReaderScreen(
                 selectionMenuVisible = false
             }
         )
+
+        // ─── 选区操作弹窗 ───
+        when (activeSelectionAction) {
+            SelectionAction.TRANSLATE -> {
+                TranslateDialog(
+                    selectedText = currentSelectedText,
+                    translateApiUrl = translateApiUrl,
+                    translateApiKey = translateApiKey,
+                    onDismiss = { activeSelectionAction = null }
+                )
+            }
+            SelectionAction.DICTIONARY -> {
+                DictionaryDialog(
+                    selectedText = currentSelectedText,
+                    dictionaryApiUrl = dictionaryApiUrl,
+                    dictionaryApiKey = dictionaryApiKey,
+                    onDismiss = { activeSelectionAction = null }
+                )
+            }
+            SelectionAction.NOTE -> {
+                NoteDialog(
+                    selectedText = currentSelectedText,
+                    onSaveNote = { noteContent ->
+                        // 暂用 fixed Highlight 配合笔记，等待精细 offset 获取
+                        val mockHighlightId = "temp-hl-${System.currentTimeMillis()}"
+                        onAddHighlight(currentChapter, 0, 0, 0, 10, "Yellow")
+                        onSaveNote(mockHighlightId, noteContent)
+                        activeSelectionAction = null
+                    },
+                    onDismiss = { activeSelectionAction = null }
+                )
+            }
+            SelectionAction.CORRECT -> {
+                CorrectionDialog(
+                    selectedText = currentSelectedText,
+                    onDismiss = { activeSelectionAction = null }
+                )
+            }
+            else -> {}
+        }
     }
     } // CompositionLocalProvider
 }
