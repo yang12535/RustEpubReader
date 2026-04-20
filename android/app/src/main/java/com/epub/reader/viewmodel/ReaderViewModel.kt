@@ -643,22 +643,18 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             
             val metadata = jsonParser.decodeFromString<BookMetadataDto>(metadataJson)
 
-            // Parse review chapter info from raw JSON (not in DTO yet)
-            val rawObj = org.json.JSONObject(metadataJson)
-            val reviewIndices = mutableSetOf<Int>()
-            val chapterReviewMap = mutableMapOf<Int, Int>()
-            if (rawObj.has("reviewChapterIndices")) {
-                val arr = rawObj.getJSONArray("reviewChapterIndices")
-                for (i in 0 until arr.length()) {
-                    reviewIndices.add(arr.getInt(i))
-                }
+            // Parse review chapter info from DTO with safe fallback
+            val reviewIndices = try {
+                metadata.reviewChapterIndices.toMutableSet()
+            } catch (e: Exception) {
+                android.util.Log.e("ReaderViewModel", "解析段评数据失败", e)
+                mutableSetOf<Int>()
             }
-            if (rawObj.has("chapterReviews")) {
-                val arr = rawObj.getJSONArray("chapterReviews")
-                for (i in 0 until arr.length()) {
-                    val obj = arr.getJSONObject(i)
-                    chapterReviewMap[obj.getInt("main")] = obj.getInt("review")
-                }
+            val chapterReviewMap = try {
+                metadata.chapterReviews.associate { it.main to it.review }.toMutableMap()
+            } catch (e: Exception) {
+                android.util.Log.e("ReaderViewModel", "解析段评数据失败", e)
+                mutableMapOf<Int, Int>()
             }
             withContext(Dispatchers.Main) {
                 reviewChapterIndices = reviewIndices

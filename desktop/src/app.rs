@@ -661,6 +661,8 @@ pub struct ReaderApp {
     pub review_panel_just_opened: bool,
     /// Computed scroll offset for the current anchor. Applied once when opening.
     pub review_panel_scroll_offset: Option<f32>,
+    /// Computed scroll offset for a clicked anchor link in the main reader.
+    pub anchor_scroll_offset: Option<f32>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -914,6 +916,7 @@ impl Default for ReaderApp {
             review_panel_anchor: None,
             review_panel_just_opened: false,
             review_panel_scroll_offset: None,
+            anchor_scroll_offset: None,
         };
 
         if let Some(settings) = AppSettings::load(&app.data_dir) {
@@ -2022,7 +2025,7 @@ impl eframe::App for ReaderApp {
             ctx.request_repaint();
         }
 
-        if self.view == AppView::Reader && !self.show_sharing_panel {
+        if self.view == AppView::Reader && !self.show_sharing_panel && !self.show_review_panel {
             ctx.input(|i| {
                 if i.key_pressed(egui::Key::ArrowLeft) {
                     if self.scroll_mode {

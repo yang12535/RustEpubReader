@@ -76,7 +76,7 @@ fn collect_blocks(
                             let mut inner = Vec::new();
                             collect_blocks(elem_ref, &mut inner, chapter_path, image_resources);
                             for block in inner {
-                                if let ContentBlock::Paragraph { mut spans, anchor_id: _ } = block {
+                                if let ContentBlock::Paragraph { mut spans, anchor_id } = block {
                                     spans.insert(
                                         0,
                                         TextSpan {
@@ -86,7 +86,7 @@ fn collect_blocks(
                                             correction: None,
                                         },
                                     );
-                                    blocks.push(ContentBlock::Paragraph { spans, anchor_id: None });
+                                    blocks.push(ContentBlock::Paragraph { spans, anchor_id });
                                 } else {
                                     blocks.push(block);
                                 }
