@@ -662,6 +662,8 @@ pub struct ReaderApp {
     pub review_panel_chapter: Option<usize>,
     pub review_panel_anchor: Option<String>,
     pub review_panel_just_opened: bool,
+    /// One-frame cooldown after review panel closes to prevent click pass-through.
+    pub review_panel_just_closed: bool,
     /// Computed scroll offset for a clicked anchor link in the main reader.
     pub anchor_scroll_offset: Option<f32>,
 }
@@ -917,6 +919,7 @@ impl Default for ReaderApp {
             review_panel_chapter: None,
             review_panel_anchor: None,
             review_panel_just_opened: false,
+            review_panel_just_closed: false,
             anchor_scroll_offset: None,
         };
 

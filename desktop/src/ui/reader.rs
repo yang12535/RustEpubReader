@@ -921,6 +921,7 @@ impl ReaderApp {
                         && self.csc_popup.is_none()
                         && !self.csc_custom_replace_active
                         && !self.show_review_panel
+                        && !self.review_panel_just_closed
                     {
                         let pointer_in_page = ui.input(|i| {
                             i.pointer
@@ -939,6 +940,7 @@ impl ReaderApp {
                         // Click-to-turn is handled in the selection release handler
                         // to avoid conflict with sel_press_origin
                         if !self.show_review_panel
+                            && !self.review_panel_just_closed
                             && clicked_link.is_none()
                             && self.sel_press_origin.is_none()
                             && ui.input(|i| i.pointer.primary_clicked())
@@ -1134,10 +1136,10 @@ impl ReaderApp {
             BLOCK_GALLEYS.with(|bg| bg.borrow_mut().drain(..).collect());
 
         let primary_down = ui.ctx().input(|i| i.pointer.primary_down());
-        let pointer_pos = ui.ctx().input(|i| i.pointer.interact_pos());
+        let pointer_pos = ui.ctx().input(|i| i.pointer.interact_pos().or_else(|| i.pointer.hover_pos()));
 
         // Detect primary pointer press / drag / release for selection
-        if !self.show_review_panel {
+        if !self.show_review_panel && !self.review_panel_just_closed {
             let primary_pressed = ui.ctx().input(|i| i.pointer.primary_pressed());
             let primary_released = ui.ctx().input(|i| i.pointer.primary_released());
 
@@ -1632,13 +1634,12 @@ impl ReaderApp {
             let note_toolbar_id = egui::Id::new("hl_note_toolbar");
             let mut close_popup = false;
 
-            let mut popup_rect = egui::Rect::NOTHING;
-            egui::Area::new(note_toolbar_id)
+            let area_resp = egui::Area::new(note_toolbar_id)
                 .fixed_pos(egui::pos2(popup_pos.x - 160.0, popup_pos.y - 170.0))
                 .order(egui::Order::Foreground)
                 .interactable(true)
                 .show(ui.ctx(), |ui| {
-                    let frame_resp = egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    egui::Frame::popup(ui.style()).show(ui, |ui| {
                         ui.set_max_width(320.0);
 
                         // Top row: highlight info + action buttons
@@ -1713,9 +1714,10 @@ impl ReaderApp {
                             }
                         });
                     });
-                    // Capture Frame's actual rect (includes padding + content)
-                    popup_rect = frame_resp.response.rect;
                 });
+
+            // Use the Area's response rect (guaranteed screen coordinates) for hit-testing
+            let popup_rect = area_resp.response.rect;
 
             // Cache the popup rect for next frame's over_toolbar check
             self.hl_note_popup_rect = Some(popup_rect);
@@ -1751,7 +1753,7 @@ impl ReaderApp {
         {
             // Check if user clicked on a correction rect (ReadWrite mode)
             let any_click = ui.ctx().input(|i| i.pointer.primary_clicked());
-            if any_click && !self.show_review_panel && self.csc_popup.is_none() && self.text_selection.is_none() {
+            if any_click && !self.show_review_panel && !self.review_panel_just_closed && self.csc_popup.is_none() && self.text_selection.is_none() {
                 if let Some(click_pos) = ui.ctx().pointer_interact_pos() {
                     CSC_RECTS.with(|rects| {
                         let r = rects.borrow();
@@ -1892,6 +1894,11 @@ impl ReaderApp {
                     self.csc_popup = None;
                 }
             }
+        }
+
+        // Clear one-frame cooldown flag after review panel close
+        if self.review_panel_just_closed {
+            self.review_panel_just_closed = false;
         }
     }
 }

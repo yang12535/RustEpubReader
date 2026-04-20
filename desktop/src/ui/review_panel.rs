@@ -276,6 +276,7 @@ impl ReaderApp {
 
         if close.get() {
             self.show_review_panel = false;
+            self.review_panel_just_closed = true;
             self.review_panel_chapter = None;
             self.review_panel_anchor = None;
         }

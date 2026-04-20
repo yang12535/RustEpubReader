@@ -189,7 +189,7 @@ pub(crate) fn render_block(
             let galley = ui.painter().layout_job(job);
             let galley_size = galley.size();
             let (rect, response) =
-                ui.allocate_exact_size(galley_size, egui::Sense::click_and_drag());
+                ui.allocate_exact_size(galley_size, egui::Sense::click());
 
             if is_tts_block {
                 paint_tts_highlight(ui, rect);
@@ -343,7 +343,7 @@ pub(crate) fn render_block(
             let galley = ui.painter().layout_job(job);
             let galley_size = galley.size();
             let (rect, response) =
-                ui.allocate_exact_size(galley_size, egui::Sense::click_and_drag());
+                ui.allocate_exact_size(galley_size, egui::Sense::click());
             // TTS read-along highlight (paint behind text)
             if TTS_HIGHLIGHT_BLOCK.get() == Some(chapter_block_idx) {
                 paint_tts_highlight(ui, rect);
