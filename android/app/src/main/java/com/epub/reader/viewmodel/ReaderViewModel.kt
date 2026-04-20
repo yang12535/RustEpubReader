@@ -35,6 +35,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import android.util.Base64
+import android.widget.Toast
 
 data class TxtChapterPreview(val title: String, val lineStart: Int, val charCount: Int)
 
@@ -192,6 +193,14 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     var bookConfig by mutableStateOf<FullBookConfig?>(null)
         private set
     var showAnnotationsPanel by mutableStateOf(false)
+
+    // ---- 段评状态 ----
+    var reviewChapterIndices by mutableStateOf<Set<Int>>(emptySet())
+        private set
+    var chapterReviews by mutableStateOf<Map<Int, Int>>(emptyMap())
+        private set
+    var showReviewPanel by mutableStateOf(false)
+    var reviewPanelChapter by mutableStateOf<Int?>(null)
 
     // ---- CSC 贡献状态 ----
     var showContributeDialog by mutableStateOf(false)
@@ -633,6 +642,28 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 ?: throw Exception("EPUB ����ʧ�� (Rust Bridge)")
             
             val metadata = jsonParser.decodeFromString<BookMetadataDto>(metadataJson)
+
+            // Parse review chapter info from raw JSON (not in DTO yet)
+            val rawObj = org.json.JSONObject(metadataJson)
+            val reviewIndices = mutableSetOf<Int>()
+            val chapterReviewMap = mutableMapOf<Int, Int>()
+            if (rawObj.has("reviewChapterIndices")) {
+                val arr = rawObj.getJSONArray("reviewChapterIndices")
+                for (i in 0 until arr.length()) {
+                    reviewIndices.add(arr.getInt(i))
+                }
+            }
+            if (rawObj.has("chapterReviews")) {
+                val arr = rawObj.getJSONArray("chapterReviews")
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    chapterReviewMap[obj.getInt("main")] = obj.getInt("review")
+                }
+            }
+            withContext(Dispatchers.Main) {
+                reviewChapterIndices = reviewIndices
+                chapterReviews = chapterReviewMap
+            }
             
             val lazyChapters = object : AbstractList<Chapter>() {
                 val cache = ConcurrentHashMap<Int, Chapter>()
@@ -744,22 +775,51 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     fun nextChapter() {
         val book = currentBook ?: return
         if (currentChapter < book.chapters.size - 1) {
-            currentChapter++
-            currentPage = 0
-            saveProgress()
-            updateBookmarkState()
-            checkContributionPrompt()
+            var next = currentChapter + 1
+            // Skip review chapters
+            while (next < book.chapters.size && reviewChapterIndices.contains(next)) {
+                next++
+            }
+            if (next < book.chapters.size) {
+                currentChapter = next
+                currentPage = 0
+                saveProgress()
+                updateBookmarkState()
+                checkContributionPrompt()
+            } else {
+                Toast.makeText(context, I18n.t("reader.at_last_chapter"), Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     fun prevChapter() {
+        val book = currentBook ?: return
         if (currentChapter > 0) {
-            currentChapter--
-            currentPage = 0
-            saveProgress()
-            updateBookmarkState()
-            checkContributionPrompt()
+            var prev = currentChapter - 1
+            // Skip review chapters
+            while (prev >= 0 && reviewChapterIndices.contains(prev)) {
+                prev--
+            }
+            if (prev >= 0) {
+                currentChapter = prev
+                currentPage = 0
+                saveProgress()
+                updateBookmarkState()
+                checkContributionPrompt()
+            } else {
+                Toast.makeText(context, I18n.t("reader.at_first_chapter"), Toast.LENGTH_SHORT).show()
+            }
         }
+    }
+
+    fun openReviewPanel(chapterIndex: Int) {
+        showReviewPanel = true
+        reviewPanelChapter = chapterIndex
+    }
+
+    fun closeReviewPanel() {
+        showReviewPanel = false
+        reviewPanelChapter = null
     }
 
     fun setPage(page: Int) {
