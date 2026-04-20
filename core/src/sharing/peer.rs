@@ -95,10 +95,15 @@ impl PeerStore {
         // SECURITY: Always strip the private key from the serialized JSON.
         // The private key should only be stored in the OS keychain (when available)
         // or kept in memory only. Writing it to disk in plaintext is a security risk.
-        let mut copy = self.clone();
-        copy.private_key_pem.clear();
-        if let Ok(json) = serde_json::to_string_pretty(&copy) {
-            let _ = std::fs::write(path, json);
+        // Note: We use serde_json with a modified copy rather than #[serde(skip)]
+        // because the field must remain deserializable for migration from older versions.
+        let json = {
+            let mut copy = self.clone();
+            copy.private_key_pem.clear();
+            serde_json::to_string_pretty(&copy)
+        };
+        if let Ok(json) = json {
+            let _ = std::fs::write(&path, json);
         }
 
         // Set restrictive file permissions on Unix
@@ -106,7 +111,7 @@ impl PeerStore {
         {
             use std::os::unix::fs::PermissionsExt;
             let _ = std::fs::set_permissions(
-                dir.join("peers.json"),
+                &path,
                 std::fs::Permissions::from_mode(0o600),
             );
         }

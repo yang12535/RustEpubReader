@@ -25,7 +25,7 @@ pub fn sanitize_filename(name: &str) -> String {
         .chars()
         .take(200)
         .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' || c > '\x7F' {
+            if c.is_alphanumeric() || c == '-' || c == '_' || c > '\x7F' {
                 // Reject Unicode characters that resemble path separators
                 if c == '\u{FF0F}' || c == '\u{FF3C}' || c == '\u{2044}' || c == '\u{2215}' {
                     '_'
@@ -37,7 +37,7 @@ pub fn sanitize_filename(name: &str) -> String {
             }
         })
         .collect();
-    let sanitized = sanitized.trim_matches(|c: char| c == '.' || c == ' ').to_string();
+    let sanitized = sanitized.trim_matches('.').to_string();
     // Reject empty, path traversal sequences, and Windows reserved names
     let upper = sanitized.to_uppercase();
     let is_reserved = matches!(
