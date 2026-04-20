@@ -1,0 +1,46 @@
+{
+  "title": "段评面板与 Highlight Note Popup 焦点冲突",
+  "project": "RustEpubReader Desktop (egui)",
+  "commit": "b088f4e",
+  "reproduce_steps": [
+    "正常阅读状态，正文中有一个已创建的 highlight（蓝色背景+下划线）",
+    "点击该高亮文本 → Note popup 正常弹出显示",
+    "点击 popup 外部空白区域 → popup 关闭",
+    "再次点击同一个高亮文本 → popup 不再弹出（或弹出后立即关闭）",
+    "触发后，后续点击 popup 内部的 TextEdit/Button 也会被视为'点击外部'导致关闭"
+  ],
+  "expected_behavior": "点击高亮文本应始终打开 note popup；点击 popup 内部不应关闭 popup；只有点击 popup 外部空白区域才关闭",
+  "actual_behavior": "第一次打开 popup 正常，关闭后再次点击高亮无法重新打开；出现该状态后点击 popup 内部任何位置都被判定为'外部点击'而关闭",
+  "root_cause_hypothesis": [
+    "note popup 关闭检测使用 layer_id_at() 判断鼠标是否在 popup 上，但该检测不可靠（已改为 rect.contains 仍未解决）",
+    "可能 Area::show 返回的 response.rect 并非 popup 实际可视区域，导致 rect.contains 永远返回 false",
+    "selection 状态机的 primary_pressed 在每次点击时都会清除 clicked_highlight_id，若关闭检测与 reopen 发生在同一帧会互相抵消"
+  ],
+  "relevant_files": {
+    "desktop/src/ui/reader.rs": {
+      "note_popup_render": "line 1617-1723",
+      "note_popup_close_detection": "line 1702-1718",
+      "selection_state_machine": "line 1127-1327",
+      "highlight_click_handler": "line 1225-1255",
+      "review_panel_open": "line 1083-1091"
+    },
+    "desktop/src/ui/review_panel.rs": {
+      "backdrop_click_close": "line 272-275"
+    }
+  },
+  "already_tried_fixes": [
+    "selection 状态机整体包裹在 if !show_review_panel 中，阻止段评面板打开时底层穿透",
+    "打开段评面板时同步清除 clicked_highlight_id / text_selection / sel_press_origin",
+    "note popup 关闭检测从 layer_id_at() 改为 area_resp.response.rect.contains(pos)",
+    "backdrop 点击使用 inner.clicked() 而非 response.clicked()"
+  ],
+  "key_state_fields": [
+    "ReaderApp.clicked_highlight_id: Option<String>",
+    "ReaderApp.hl_note_just_opened: bool",
+    "ReaderApp.sel_press_origin: Option<(Pos2, usize, usize)>",
+    "ReaderApp.text_selection: Option<TextSelection>",
+    "ReaderApp.show_review_panel: bool"
+  ],
+  "egui_version": "0.29",
+  "note": "该 bug 与段评面板打开/关闭状态相关，但即使段评面板完全关闭后也能复现。问题核心是 note popup 关闭后，再次点击高亮无法重新打开。"
+}

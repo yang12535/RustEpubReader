@@ -1087,6 +1087,7 @@ impl ReaderApp {
                         self.review_panel_just_opened = true;
                         // Clear any open highlight popup / selection so they don't fight for focus
                         self.clicked_highlight_id = None;
+                        self.hl_note_popup_rect = None;
                         self.text_selection = None;
                         self.sel_press_origin = None;
                     } else {
@@ -1155,10 +1156,15 @@ impl ReaderApp {
         // Check if pointer is over a toolbar area (so we don't start selection there)
         let toolbar_id = egui::Id::new("sel_toolbar");
         let note_toolbar_id = egui::Id::new("hl_note_toolbar");
-        let over_toolbar = ui.ctx().memory(|mem| {
-            mem.layer_id_at(pointer_pos.unwrap_or_default())
-                .is_some_and(|layer| layer.id == toolbar_id || layer.id == note_toolbar_id)
-        });
+        // Use cached popup rect for reliable hit-testing (layer_id_at is unreliable in egui 0.29)
+        let over_popup_rect = self
+            .hl_note_popup_rect
+            .is_some_and(|rect| pointer_pos.is_some_and(|pos| rect.contains(pos)));
+        let over_toolbar = over_popup_rect
+            || ui.ctx().memory(|mem| {
+                mem.layer_id_at(pointer_pos.unwrap_or_default())
+                    .is_some_and(|layer| layer.id == toolbar_id || layer.id == note_toolbar_id)
+            });
 
         if let Some(pos) = pointer_pos {
             const DRAG_THRESHOLD: f32 = 5.0;
@@ -1167,18 +1173,18 @@ impl ReaderApp {
                 if let Some((block_idx, char_idx)) = hit_test(pos) {
                     // Record press origin; don't create TextSelection yet
                     self.sel_press_origin = Some((pos, block_idx, char_idx));
-                    // Clear any existing finalized selection or highlight popup
+                    // Clear any existing finalized selection
                     if self.text_selection.as_ref().is_some_and(|s| !s.is_dragging) {
                         self.text_selection = None;
                     }
-                    if self.clicked_highlight_id.is_some() {
-                        self.clicked_highlight_id = None;
-                    }
+                    // Don't clear clicked_highlight_id here — let the popup's
+                    // own close detection handle it on primary_clicked (release).
                 } else {
-                    // Clicked outside any block → clear everything
+                    // Clicked outside any block → clear selection state
                     self.sel_press_origin = None;
                     self.text_selection = None;
-                    self.clicked_highlight_id = None;
+                    // Don't clear clicked_highlight_id — popup close detection
+                    // will handle it on primary_clicked.
                 }
             } else if primary_down && !over_toolbar {
                 // If we have a pending press origin but no selection yet, check threshold
@@ -1194,6 +1200,11 @@ impl ReaderApp {
                             is_dragging: true,
                         });
                         self.sel_press_origin = None;
+                        // Close any open highlight popup when starting a drag
+                        if self.clicked_highlight_id.is_some() {
+                            self.clicked_highlight_id = None;
+                            self.hl_note_popup_rect = None;
+                        }
                     }
                 }
                 // Update end of an active selection while dragging
@@ -1621,7 +1632,8 @@ impl ReaderApp {
             let note_toolbar_id = egui::Id::new("hl_note_toolbar");
             let mut close_popup = false;
 
-            let area_resp = egui::Area::new(note_toolbar_id)
+            let mut popup_rect = egui::Rect::NOTHING;
+            egui::Area::new(note_toolbar_id)
                 .fixed_pos(egui::pos2(popup_pos.x - 160.0, popup_pos.y - 170.0))
                 .order(egui::Order::Foreground)
                 .interactable(true)
@@ -1701,7 +1713,12 @@ impl ReaderApp {
                             }
                         });
                     });
+                    // Capture the actual rendered rect (Area::show response.rect is just a point)
+                    popup_rect = ui.min_rect();
                 });
+
+            // Cache the popup rect for next frame's over_toolbar check
+            self.hl_note_popup_rect = Some(popup_rect);
 
             // Close popup on click outside (skip the frame it was just opened)
             if !close_popup {
@@ -1712,7 +1729,7 @@ impl ReaderApp {
                     if any_click {
                         let over_note_popup = ui.ctx()
                             .pointer_interact_pos()
-                            .is_some_and(|pos| area_resp.response.rect.contains(pos));
+                            .is_some_and(|pos| popup_rect.contains(pos));
                         if !over_note_popup {
                             close_popup = true;
                         }
@@ -1723,7 +1740,11 @@ impl ReaderApp {
             if close_popup {
                 self.clicked_highlight_id = None;
                 self.editing_note_buf.clear();
+                self.hl_note_popup_rect = None;
             }
+        } else {
+            // Popup not shown — clear cached rect
+            self.hl_note_popup_rect = None;
         }
 
         // ── CSC correction click detection + popup ──

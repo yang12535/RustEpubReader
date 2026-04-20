@@ -585,6 +585,9 @@ pub struct ReaderApp {
     pub clicked_highlight_id: Option<String>,
     pub hl_note_toolbar_pos: egui::Pos2,
     pub hl_note_just_opened: bool,
+    /// Cached bounding rect of the note popup from the previous frame,
+    /// used for reliable hit-testing (layer_id_at is unreliable in egui 0.29).
+    pub hl_note_popup_rect: Option<egui::Rect>,
     /// Note editing in annotations panel: highlight id being edited
     pub editing_note_id: Option<String>,
     pub editing_note_buf: String,
@@ -853,6 +856,7 @@ impl Default for ReaderApp {
             clicked_highlight_id: None,
             hl_note_toolbar_pos: egui::Pos2::ZERO,
             hl_note_just_opened: false,
+            hl_note_popup_rect: None,
             editing_note_id: None,
             editing_note_buf: String::new(),
             // TTS
