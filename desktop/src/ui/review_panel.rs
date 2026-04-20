@@ -58,7 +58,7 @@ fn compute_anchor_scroll_offset(
 ) -> Option<f32> {
     // The header (title bar, separator, chapter title) is rendered *outside* the
     // ScrollArea, so vertical_scroll_offset is relative to the ScrollArea content only.
-    let mut offset = 0.0_f32;
+    let mut offset = 0.0;
     for block in blocks {
         let is_match = match block {
             reader_core::epub::ContentBlock::Heading {
