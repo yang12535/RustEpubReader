@@ -7,7 +7,7 @@ use std::path::Path;
 
 use epub::doc::EpubDoc;
 
-use super::{Chapter, TocEntry};
+use super::{Chapter, ContentBlock, TocEntry};
 use html::parse_html_blocks;
 use image::load_referenced_images;
 
@@ -141,11 +141,14 @@ impl EpubBook {
                     .map(|(label, _)| label.clone())
                     .unwrap_or_else(|| format!("第 {} 章", chapters.len() + 1));
 
-                if blocks.is_empty() {
-                    continue;
-                }
-
                 let chapter_idx = chapters.len();
+
+                // Avoid completely empty chapters (keeps index stable but shows something)
+                let blocks = if blocks.is_empty() {
+                    vec![ContentBlock::BlankLine]
+                } else {
+                    blocks
+                };
 
                 chapters.push(Chapter {
                     title: chapter_title.clone(),
@@ -207,8 +210,15 @@ impl EpubBook {
             if ch.title.ends_with(REVIEW_SUFFIX) {
                 review_chapter_indices.insert(idx);
                 let base_title = &ch.title[..ch.title.len() - REVIEW_SUFFIX.len()];
-                // Find the main chapter with matching title
-                if let Some(main_idx) = chapters.iter().position(|c| c.title == base_title) {
+                // Match to the Nth main chapter with the same title
+                let review_count = chapters[..idx].iter().filter(|c| c.title == ch.title).count();
+                if let Some(main_idx) = chapters
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.title == base_title)
+                    .nth(review_count)
+                    .map(|(i, _)| i)
+                {
                     chapter_reviews.insert(main_idx, idx);
                 }
             }

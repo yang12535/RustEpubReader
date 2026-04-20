@@ -215,7 +215,9 @@ impl ReaderApp {
 
                 if self.scroll_mode {
                     let mut scroll_area = egui::ScrollArea::vertical().auto_shrink([false; 2]);
-                    if self.scroll_to_top {
+                    if let Some(y) = self.anchor_scroll_offset.take() {
+                        scroll_area = scroll_area.vertical_scroll_offset(y);
+                    } else if self.scroll_to_top {
                         scroll_area = scroll_area.vertical_scroll_offset(0.0);
                         self.scroll_to_top = false;
                     }
@@ -1012,7 +1014,53 @@ impl ReaderApp {
                 || lowered.starts_with("tel:")
             {
                 ui.ctx().open_url(egui::OpenUrl::new_tab(url));
-            } else if !url.starts_with('#') {
+            } else if url.starts_with('#') {
+                let anchor = &url[1..];
+                if let Some(book) = &self.book {
+                    if let Some(chapter) = book.chapters.get(self.current_chapter) {
+                        if let Some(block_idx) = chapter.blocks.iter().position(|block| {
+                            match block {
+                                ContentBlock::Heading { anchor_id: Some(id), .. } => id == anchor,
+                                ContentBlock::Paragraph { anchor_id: Some(id), .. } => id == anchor,
+                                _ => false,
+                            }
+                        }) {
+                            if self.scroll_mode {
+                                let available_width = ui.available_width();
+                                let text_width = if available_width > DUAL_COLUMN_THRESHOLD {
+                                    let col_w = (available_width - DUAL_COLUMN_GAP) / 2.0;
+                                    (col_w - DUAL_COLUMN_PADDING).min(MAX_COLUMN_WIDTH)
+                                } else {
+                                    MAX_TEXT_WIDTH_SINGLE.min(available_width - SINGLE_TEXT_PADDING)
+                                };
+                                let line_height = self.font_size * line_spacing();
+                                let mut offset = 0.0;
+                                for (i, block) in chapter.blocks.iter().enumerate() {
+                                    if i >= block_idx {
+                                        break;
+                                    }
+                                    offset += estimate_block_height(
+                                        block,
+                                        self.font_size,
+                                        line_height,
+                                        text_width,
+                                    );
+                                }
+                                self.anchor_scroll_offset = Some(offset);
+                            } else {
+                                for (page_idx, (start, end)) in
+                                    self.page_block_ranges.iter().enumerate()
+                                {
+                                    if block_idx >= *start && block_idx < *end {
+                                        self.current_page = page_idx;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
                 let normalized = normalize_epub_href(&url);
                 let target_idx = if !normalized.is_empty() {
                     self.book.as_ref().and_then(|book| {

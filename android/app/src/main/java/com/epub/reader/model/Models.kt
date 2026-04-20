@@ -11,12 +11,30 @@ enum class InlineStyle {
     Normal, Bold, Italic, BoldItalic
 }
 
+/** 纠错状态 — 对应 Rust 版本的 CorrectionStatus */
+@Serializable
+enum class CorrectionStatus {
+    Pending, Accepted, Rejected, Ignored
+}
+
+/** 纠错信息 — 对应 Rust 版本的 CorrectionInfo */
+@Serializable
+data class CorrectionInfo(
+    val original: String,
+    val corrected: String,
+    val confidence: Float = 0f,
+    @SerialName("char_offset")
+    val charOffset: Int = 0,
+    val status: CorrectionStatus = CorrectionStatus.Pending
+)
+
 /** 文本片段 — 对应 Rust 版本的 TextSpan */
 @Serializable
 data class TextSpan(
     val text: String,
     val style: InlineStyle = InlineStyle.Normal,
-    val linkUrl: String? = null
+    val linkUrl: String? = null,
+    val correction: CorrectionInfo? = null
 )
 
 /** 内容块 — 对应 Rust 版本的 ContentBlock */
@@ -59,11 +77,19 @@ data class TocEntryDto(
 )
 
 @Serializable
+data class ChapterReviewEntry(
+    val main: Int,
+    val review: Int
+)
+
+@Serializable
 data class BookMetadataDto(
     val title: String,
     val chapterCount: Int,
     val toc: List<TocEntryDto>,
-    val hasCover: Boolean
+    val hasCover: Boolean,
+    val chapterReviews: List<ChapterReviewEntry> = emptyList(),
+    val reviewChapterIndices: List<Int> = emptyList()
 )
 
 /** 方便与老代码兼容保留的 Chapter 定义（如果需要映射） */
