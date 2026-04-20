@@ -663,6 +663,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             withContext(Dispatchers.Main) {
                 reviewChapterIndices = reviewIndices
                 chapterReviews = chapterReviewMap
+                // Reset review panel state so a stale panel never persists across book switches
+                showReviewPanel = false
+                reviewPanelChapter = null
             }
             
             val lazyChapters = object : AbstractList<Chapter>() {
@@ -757,6 +760,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         }
         currentChapter = target
         currentPage = 0
+        // Close review panel if open so a stale panel doesn't linger after TOC navigation
+        showReviewPanel = false
+        reviewPanelChapter = null
         saveProgress()
         updateBookmarkState()
         checkContributionPrompt()

@@ -1163,6 +1163,7 @@ impl ReaderApp {
     pub fn next_chapter(&mut self) {
         let total = self.total_chapters();
         if total > 0 && self.current_chapter < total - 1 {
+            let original = self.current_chapter;
             self.current_chapter += 1;
             // Skip review chapters (段评)
             if let Some(book) = &self.book {
@@ -1170,6 +1171,12 @@ impl ReaderApp {
                     && book.review_chapter_indices.contains(&self.current_chapter)
                 {
                     self.current_chapter += 1;
+                }
+                // If we still landed on a review chapter at the last position,
+                // all remaining chapters are reviews — stay put.
+                if book.review_chapter_indices.contains(&self.current_chapter) {
+                    self.current_chapter = original;
+                    return;
                 }
             }
             self.scroll_to_top = true;
@@ -1199,6 +1206,7 @@ impl ReaderApp {
 
     pub fn prev_chapter(&mut self) {
         if self.current_chapter > 0 {
+            let original = self.current_chapter;
             self.current_chapter -= 1;
             // Skip review chapters (段评)
             if let Some(book) = &self.book {
@@ -1206,6 +1214,12 @@ impl ReaderApp {
                     && book.review_chapter_indices.contains(&self.current_chapter)
                 {
                     self.current_chapter -= 1;
+                }
+                // If we still landed on a review chapter at position 0,
+                // all preceding chapters are reviews — stay put.
+                if book.review_chapter_indices.contains(&self.current_chapter) {
+                    self.current_chapter = original;
+                    return;
                 }
             }
             self.scroll_to_top = true;
