@@ -24,11 +24,11 @@ data class TextSpan(
 sealed class ContentBlock {
     @Serializable
     @SerialName("heading")
-    data class Heading(val level: Int, val spans: List<TextSpan>) : ContentBlock()
+    data class Heading(val level: Int, val spans: List<TextSpan>, val anchorId: String? = null) : ContentBlock()
 
     @Serializable
     @SerialName("paragraph")
-    data class Paragraph(val spans: List<TextSpan>) : ContentBlock()
+    data class Paragraph(val spans: List<TextSpan>, val anchorId: String? = null) : ContentBlock()
 
     @Serializable
     @SerialName("image")

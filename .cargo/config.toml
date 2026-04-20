@@ -1,6 +1,0 @@
-# Fix CRT mismatch: esaxx-rs (tokenizers dep) forces /MT via static_crt(true),
-# but ort_sys prebuilt binaries use /MD. MSVC uses the last CRT flag, so appending
-# /MD via CXXFLAGS overrides esaxx-rs's /MT.
-[env]
-CXXFLAGS_x86_64_pc_windows_msvc = "/MD"
-CXXFLAGS_aarch64_pc_windows_msvc = "/MD"

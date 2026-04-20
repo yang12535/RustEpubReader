@@ -654,6 +654,13 @@ pub struct ReaderApp {
     pub csc_contribute_pr_url: Option<String>,
     pub csc_contribute_rx:
         Option<std::sync::mpsc::Receiver<crate::ui::csc_contribute::ContributeResult>>,
+    // ── Review Panel (段评覆盖层) ──
+    pub show_review_panel: bool,
+    pub review_panel_chapter: Option<usize>,
+    pub review_panel_anchor: Option<String>,
+    pub review_panel_just_opened: bool,
+    /// Computed scroll offset for the current anchor. Applied once when opening.
+    pub review_panel_scroll_offset: Option<f32>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -901,6 +908,12 @@ impl Default for ReaderApp {
             csc_contribute_status: String::new(),
             csc_contribute_pr_url: None,
             csc_contribute_rx: None,
+            // Review Panel
+            show_review_panel: false,
+            review_panel_chapter: None,
+            review_panel_anchor: None,
+            review_panel_just_opened: false,
+            review_panel_scroll_offset: None,
         };
 
         if let Some(settings) = AppSettings::load(&app.data_dir) {
@@ -1104,6 +1117,12 @@ impl ReaderApp {
                 self.current_chapter = ch;
                 self.last_synced_chapter = None; // Reset so progress is pushed immediately on first update
                 self.scroll_to_top = true;
+                // Reset review panel state when switching books
+                self.show_review_panel = false;
+                self.review_panel_chapter = None;
+                self.review_panel_anchor = None;
+                self.review_panel_just_opened = false;
+                self.review_panel_scroll_offset = None;
                 self.pages_dirty = true;
                 self.current_page = 0;
                 self.view = AppView::Reader;
@@ -1144,7 +1163,22 @@ impl ReaderApp {
     pub fn next_chapter(&mut self) {
         let total = self.total_chapters();
         if total > 0 && self.current_chapter < total - 1 {
+            let original = self.current_chapter;
             self.current_chapter += 1;
+            // Skip review chapters (段评)
+            if let Some(book) = &self.book {
+                while self.current_chapter < total - 1
+                    && book.review_chapter_indices.contains(&self.current_chapter)
+                {
+                    self.current_chapter += 1;
+                }
+                // If we still landed on a review chapter at the last position,
+                // all remaining chapters are reviews — stay put.
+                if book.review_chapter_indices.contains(&self.current_chapter) {
+                    self.current_chapter = original;
+                    return;
+                }
+            }
             self.scroll_to_top = true;
             self.pages_dirty = true;
             self.current_page = 0;
@@ -1172,7 +1206,22 @@ impl ReaderApp {
 
     pub fn prev_chapter(&mut self) {
         if self.current_chapter > 0 {
+            let original = self.current_chapter;
             self.current_chapter -= 1;
+            // Skip review chapters (段评)
+            if let Some(book) = &self.book {
+                while self.current_chapter > 0
+                    && book.review_chapter_indices.contains(&self.current_chapter)
+                {
+                    self.current_chapter -= 1;
+                }
+                // If we still landed on a review chapter at position 0,
+                // all preceding chapters are reviews — stay put.
+                if book.review_chapter_indices.contains(&self.current_chapter) {
+                    self.current_chapter = original;
+                    return;
+                }
+            }
             self.scroll_to_top = true;
             self.pages_dirty = true;
             self.current_page = 0;
@@ -1278,7 +1327,7 @@ impl ReaderApp {
                     .enumerate()
                     .filter_map(|(i, block)| {
                         let spans = match block {
-                            ContentBlock::Paragraph { spans } => spans,
+                            ContentBlock::Paragraph { spans, .. } => spans,
                             ContentBlock::Heading { spans, .. } => spans,
                             _ => return None,
                         };
@@ -2090,6 +2139,7 @@ impl eframe::App for ReaderApp {
         // ── Floating windows ──
         self.render_export_dialog(ctx);
         self.render_stats_window(ctx);
+        self.render_review_panel(ctx);
 
         // ── Sharing Panel ──
         if self.show_sharing_panel {

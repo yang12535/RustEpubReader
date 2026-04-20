@@ -918,6 +918,7 @@ impl ReaderApp {
                         && self.clicked_highlight_id.is_none()
                         && self.csc_popup.is_none()
                         && !self.csc_custom_replace_active
+                        && !self.show_review_panel
                     {
                         let pointer_in_page = ui.input(|i| {
                             i.pointer
@@ -1029,10 +1030,18 @@ impl ReaderApp {
                     None
                 };
                 if let Some(idx) = target_idx {
-                    self.current_chapter = idx;
-                    self.current_page = 0;
-                    self.scroll_to_top = true;
-                    self.pages_dirty = true;
+                    // Check if target is a review chapter (段评) — show overlay instead of navigating
+                    if self.book.as_ref().map_or(false, |b| b.review_chapter_indices.contains(&idx)) {
+                        self.show_review_panel = true;
+                        self.review_panel_chapter = Some(idx);
+                        self.review_panel_anchor = url.split('#').nth(1).map(|s| s.to_string());
+                        self.review_panel_just_opened = true;
+                    } else {
+                        self.current_chapter = idx;
+                        self.current_page = 0;
+                        self.scroll_to_top = true;
+                        self.pages_dirty = true;
+                    }
                 } else {
                     ui.ctx().open_url(egui::OpenUrl::new_tab(url));
                 }
