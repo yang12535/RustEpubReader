@@ -59,11 +59,19 @@ data class TocEntryDto(
 )
 
 @Serializable
+data class ChapterReviewEntry(
+    val main: Int,
+    val review: Int
+)
+
+@Serializable
 data class BookMetadataDto(
     val title: String,
     val chapterCount: Int,
     val toc: List<TocEntryDto>,
-    val hasCover: Boolean
+    val hasCover: Boolean,
+    val chapterReviews: List<ChapterReviewEntry> = emptyList(),
+    val reviewChapterIndices: List<Int> = emptyList()
 )
 
 /** 方便与老代码兼容保留的 Chapter 定义（如果需要映射） */

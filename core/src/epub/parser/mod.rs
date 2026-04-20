@@ -141,10 +141,6 @@ impl EpubBook {
                     .map(|(label, _)| label.clone())
                     .unwrap_or_else(|| format!("第 {} 章", chapters.len() + 1));
 
-                if blocks.is_empty() {
-                    continue;
-                }
-
                 let chapter_idx = chapters.len();
 
                 chapters.push(Chapter {
@@ -207,8 +203,15 @@ impl EpubBook {
             if ch.title.ends_with(REVIEW_SUFFIX) {
                 review_chapter_indices.insert(idx);
                 let base_title = &ch.title[..ch.title.len() - REVIEW_SUFFIX.len()];
-                // Find the main chapter with matching title
-                if let Some(main_idx) = chapters.iter().position(|c| c.title == base_title) {
+                // Match to the Nth main chapter with the same title
+                let review_count = chapters[..idx].iter().filter(|c| c.title == ch.title).count();
+                if let Some(main_idx) = chapters
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.title == base_title)
+                    .nth(review_count)
+                    .map(|(i, _)| i)
+                {
                     chapter_reviews.insert(main_idx, idx);
                 }
             }
