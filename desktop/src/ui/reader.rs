@@ -1128,11 +1128,13 @@ impl ReaderApp {
         let block_galleys: Vec<BlockGalleyEntry> =
             BLOCK_GALLEYS.with(|bg| bg.borrow_mut().drain(..).collect());
 
-        // Detect primary pointer press / drag / release for selection
-        let pointer_pos = ui.ctx().input(|i| i.pointer.interact_pos());
         let primary_down = ui.ctx().input(|i| i.pointer.primary_down());
-        let primary_pressed = ui.ctx().input(|i| i.pointer.primary_pressed());
-        let primary_released = ui.ctx().input(|i| i.pointer.primary_released());
+        let pointer_pos = ui.ctx().input(|i| i.pointer.interact_pos());
+
+        // Detect primary pointer press / drag / release for selection
+        if !self.show_review_panel {
+            let primary_pressed = ui.ctx().input(|i| i.pointer.primary_pressed());
+            let primary_released = ui.ctx().input(|i| i.pointer.primary_released());
 
         // Helper: find which block a screen position falls into and return (block_idx, char_offset)
         let hit_test = |pos: egui::Pos2| -> Option<(usize, usize)> {
@@ -1321,6 +1323,7 @@ impl ReaderApp {
                     }
                 }
             }
+        }
         }
 
         // ── Draw selection highlight overlay (blue rectangles) ──
@@ -1700,7 +1703,7 @@ impl ReaderApp {
             if !close_popup {
                 if self.hl_note_just_opened {
                     self.hl_note_just_opened = false;
-                } else {
+                } else if !self.show_review_panel {
                     let any_click = ui.ctx().input(|i| i.pointer.primary_clicked());
                     if any_click {
                         let over_note_popup = ui.ctx().memory(|mem| {
@@ -1724,7 +1727,7 @@ impl ReaderApp {
         {
             // Check if user clicked on a correction rect (ReadWrite mode)
             let any_click = ui.ctx().input(|i| i.pointer.primary_clicked());
-            if any_click && self.csc_popup.is_none() && self.text_selection.is_none() {
+            if any_click && !self.show_review_panel && self.csc_popup.is_none() && self.text_selection.is_none() {
                 if let Some(click_pos) = ui.ctx().pointer_interact_pos() {
                     CSC_RECTS.with(|rects| {
                         let r = rects.borrow();
