@@ -8,6 +8,7 @@ use super::crypto;
 use super::dbg_log;
 use super::protocol::*;
 use crate::{base64_decode, base64_encode, now_secs};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PairedDevice {
@@ -37,13 +38,13 @@ impl PeerStore {
             serde_json::from_str(&data).unwrap_or_default()
         } else {
             Self {
-                device_id: uuid_simple(),
+                device_id: Uuid::new_v4().simple().to_string(),
                 device_name: hostname(),
                 ..Default::default()
             }
         };
         if store.device_id.is_empty() {
-            store.device_id = uuid_simple();
+            store.device_id = Uuid::new_v4().simple().to_string();
         }
         if store.device_name.is_empty() {
             store.device_name = hostname();
@@ -455,7 +456,7 @@ fn handle_pairing(
                     client_pin == pin
                 );
                 if client_pin == pin {
-                    let pairing_uuid = generate_uuid();
+                    let pairing_uuid = Uuid::new_v4().to_string();
                     dbg_log!("PAIRING: PIN matched! pairing_uuid={}", pairing_uuid);
                     let device_name = store
                         .lock()
@@ -1098,30 +1099,7 @@ fn find_book_by_hash(
     None
 }
 
-fn uuid_simple() -> String {
-    let mut buf = [0u8; 8];
-    use rand::RngCore;
-    rand::rngs::OsRng.fill_bytes(&mut buf);
-    format!("{:016x}", u64::from_be_bytes(buf))
-}
-
-fn generate_uuid() -> String {
-    let mut buf = [0u8; 16];
-    use rand::RngCore;
-    rand::rngs::OsRng.fill_bytes(&mut buf);
-    // RFC 4122 version 4
-    buf[6] = (buf[6] & 0x0f) | 0x40;
-    buf[8] = (buf[8] & 0x3f) | 0x80;
-    format!(
-        "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
-        u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]),
-        u16::from_be_bytes([buf[4], buf[5]]),
-        u16::from_be_bytes([buf[6], buf[7]]),
-        u16::from_be_bytes([buf[8], buf[9]]),
-        // last 6 bytes as u64
-        u64::from_be_bytes([0, 0, buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]])
-    )
-}
+// UUID generation uses the `uuid` crate (see Cargo.toml).
 
 fn hostname() -> String {
     std::env::var("COMPUTERNAME")

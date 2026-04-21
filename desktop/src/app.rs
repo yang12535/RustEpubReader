@@ -292,9 +292,10 @@ struct AppSettings {
     tts_volume: i32,
     #[serde(default)]
     translate_api_url: String,
+    // TODO: API keys are stored as plaintext in settings.json.
+    // Consider migrating to OS keychain (keyring crate) for production use.
     #[serde(default)]
     translate_api_key: String,
-    #[serde(default)]
     dictionary_api_url: String,
     #[serde(default)]
     dictionary_api_key: String,
