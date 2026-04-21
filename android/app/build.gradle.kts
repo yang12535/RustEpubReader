@@ -113,8 +113,8 @@ tasks.register<Exec>("cargoBuild") {
     workingDir = file("../../android-bridge")
     commandLine(
         "cargo", "ndk",
-        "-t", "arm64-v8a", 
-        "-t", "x86_64",
+        "-t", "arm64-v8a",
+        "-t", "armeabi-v7a",
         "-o", "../android/app/src/main/jniLibs",
         "build", "--release"
     )
