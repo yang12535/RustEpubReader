@@ -585,6 +585,9 @@ pub struct ReaderApp {
     pub clicked_highlight_id: Option<String>,
     pub hl_note_toolbar_pos: egui::Pos2,
     pub hl_note_just_opened: bool,
+    /// Cached bounding rect of the note popup from the previous frame,
+    /// used for reliable hit-testing (layer_id_at is unreliable in egui 0.29).
+    pub hl_note_popup_rect: Option<egui::Rect>,
     /// Note editing in annotations panel: highlight id being edited
     pub editing_note_id: Option<String>,
     pub editing_note_buf: String,
@@ -659,8 +662,8 @@ pub struct ReaderApp {
     pub review_panel_chapter: Option<usize>,
     pub review_panel_anchor: Option<String>,
     pub review_panel_just_opened: bool,
-    /// Computed scroll offset for the current anchor. Applied once when opening.
-    pub review_panel_scroll_offset: Option<f32>,
+    /// When true, show all blocks in the review panel; when false, filter to the anchored block only.
+    pub review_panel_show_all: bool,
     /// Computed scroll offset for a clicked anchor link in the main reader.
     pub anchor_scroll_offset: Option<f32>,
 }
@@ -855,6 +858,7 @@ impl Default for ReaderApp {
             clicked_highlight_id: None,
             hl_note_toolbar_pos: egui::Pos2::ZERO,
             hl_note_just_opened: false,
+            hl_note_popup_rect: None,
             editing_note_id: None,
             editing_note_buf: String::new(),
             // TTS
@@ -915,7 +919,7 @@ impl Default for ReaderApp {
             review_panel_chapter: None,
             review_panel_anchor: None,
             review_panel_just_opened: false,
-            review_panel_scroll_offset: None,
+            review_panel_show_all: true,
             anchor_scroll_offset: None,
         };
 
@@ -1125,7 +1129,6 @@ impl ReaderApp {
                 self.review_panel_chapter = None;
                 self.review_panel_anchor = None;
                 self.review_panel_just_opened = false;
-                self.review_panel_scroll_offset = None;
                 self.pages_dirty = true;
                 self.current_page = 0;
                 self.view = AppView::Reader;
@@ -2117,6 +2120,13 @@ impl eframe::App for ReaderApp {
             }
         }
 
+        // Dark mode: temporarily override reading background so the entire reader area is dark.
+        // This affects both CentralPanel fill and all internal rect fills in reader.rs.
+        let original_reader_bg = self.reader_bg_color;
+        if self.dark_mode && self.view == AppView::Reader {
+            self.reader_bg_color = egui::Color32::from_rgb(30, 30, 34);
+        }
+
         let reader_fill = if self.view == AppView::Reader {
             self.reader_bg_color
         } else if self.dark_mode {
@@ -2143,6 +2153,9 @@ impl eframe::App for ReaderApp {
         self.render_export_dialog(ctx);
         self.render_stats_window(ctx);
         self.render_review_panel(ctx);
+
+        // Restore original reading background (do not persist dark-mode override)
+        self.reader_bg_color = original_reader_bg;
 
         // ── Sharing Panel ──
         if self.show_sharing_panel {

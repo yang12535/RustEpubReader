@@ -938,7 +938,8 @@ impl ReaderApp {
                         }
                         // Click-to-turn is handled in the selection release handler
                         // to avoid conflict with sel_press_origin
-                        if clicked_link.is_none()
+                        if !self.show_review_panel
+                            && clicked_link.is_none()
                             && self.sel_press_origin.is_none()
                             && ui.input(|i| i.pointer.primary_clicked())
                         {
@@ -1084,6 +1085,11 @@ impl ReaderApp {
                         self.review_panel_chapter = Some(idx);
                         self.review_panel_anchor = url.split('#').nth(1).map(|s| s.to_string());
                         self.review_panel_just_opened = true;
+                        // Clear any open highlight popup / selection so they don't fight for focus
+                        self.clicked_highlight_id = None;
+                        self.hl_note_popup_rect = None;
+                        self.text_selection = None;
+                        self.sel_press_origin = None;
                     } else {
                         self.current_chapter = idx;
                         self.current_page = 0;
@@ -1127,11 +1133,13 @@ impl ReaderApp {
         let block_galleys: Vec<BlockGalleyEntry> =
             BLOCK_GALLEYS.with(|bg| bg.borrow_mut().drain(..).collect());
 
-        // Detect primary pointer press / drag / release for selection
-        let pointer_pos = ui.ctx().input(|i| i.pointer.interact_pos());
         let primary_down = ui.ctx().input(|i| i.pointer.primary_down());
-        let primary_pressed = ui.ctx().input(|i| i.pointer.primary_pressed());
-        let primary_released = ui.ctx().input(|i| i.pointer.primary_released());
+        let pointer_pos = ui.ctx().input(|i| i.pointer.interact_pos().or_else(|| i.pointer.hover_pos()));
+
+        // Detect primary pointer press / drag / release for selection
+        if !self.show_review_panel {
+            let primary_pressed = ui.ctx().input(|i| i.pointer.primary_pressed());
+            let primary_released = ui.ctx().input(|i| i.pointer.primary_released());
 
         // Helper: find which block a screen position falls into and return (block_idx, char_offset)
         let hit_test = |pos: egui::Pos2| -> Option<(usize, usize)> {
@@ -1148,10 +1156,15 @@ impl ReaderApp {
         // Check if pointer is over a toolbar area (so we don't start selection there)
         let toolbar_id = egui::Id::new("sel_toolbar");
         let note_toolbar_id = egui::Id::new("hl_note_toolbar");
-        let over_toolbar = ui.ctx().memory(|mem| {
-            mem.layer_id_at(pointer_pos.unwrap_or_default())
-                .is_some_and(|layer| layer.id == toolbar_id || layer.id == note_toolbar_id)
-        });
+        // Use cached popup rect for reliable hit-testing (layer_id_at is unreliable in egui 0.29)
+        let over_popup_rect = self
+            .hl_note_popup_rect
+            .is_some_and(|rect| pointer_pos.is_some_and(|pos| rect.contains(pos)));
+        let over_toolbar = over_popup_rect
+            || ui.ctx().memory(|mem| {
+                mem.layer_id_at(pointer_pos.unwrap_or_default())
+                    .is_some_and(|layer| layer.id == toolbar_id || layer.id == note_toolbar_id)
+            });
 
         if let Some(pos) = pointer_pos {
             const DRAG_THRESHOLD: f32 = 5.0;
@@ -1160,18 +1173,18 @@ impl ReaderApp {
                 if let Some((block_idx, char_idx)) = hit_test(pos) {
                     // Record press origin; don't create TextSelection yet
                     self.sel_press_origin = Some((pos, block_idx, char_idx));
-                    // Clear any existing finalized selection or highlight popup
+                    // Clear any existing finalized selection
                     if self.text_selection.as_ref().is_some_and(|s| !s.is_dragging) {
                         self.text_selection = None;
                     }
-                    if self.clicked_highlight_id.is_some() {
-                        self.clicked_highlight_id = None;
-                    }
+                    // Don't clear clicked_highlight_id here — let the popup's
+                    // own close detection handle it on primary_clicked (release).
                 } else {
-                    // Clicked outside any block → clear everything
+                    // Clicked outside any block → clear selection state
                     self.sel_press_origin = None;
                     self.text_selection = None;
-                    self.clicked_highlight_id = None;
+                    // Don't clear clicked_highlight_id — popup close detection
+                    // will handle it on primary_clicked.
                 }
             } else if primary_down && !over_toolbar {
                 // If we have a pending press origin but no selection yet, check threshold
@@ -1187,6 +1200,11 @@ impl ReaderApp {
                             is_dragging: true,
                         });
                         self.sel_press_origin = None;
+                        // Close any open highlight popup when starting a drag
+                        if self.clicked_highlight_id.is_some() {
+                            self.clicked_highlight_id = None;
+                            self.hl_note_popup_rect = None;
+                        }
                     }
                 }
                 // Update end of an active selection while dragging
@@ -1320,6 +1338,7 @@ impl ReaderApp {
                     }
                 }
             }
+        }
         }
 
         // ── Draw selection highlight overlay (blue rectangles) ──
@@ -1613,7 +1632,7 @@ impl ReaderApp {
             let note_toolbar_id = egui::Id::new("hl_note_toolbar");
             let mut close_popup = false;
 
-            egui::Area::new(note_toolbar_id)
+            let area_resp = egui::Area::new(note_toolbar_id)
                 .fixed_pos(egui::pos2(popup_pos.x - 160.0, popup_pos.y - 170.0))
                 .order(egui::Order::Foreground)
                 .interactable(true)
@@ -1695,17 +1714,22 @@ impl ReaderApp {
                     });
                 });
 
+            // Use the Area's response rect (guaranteed screen coordinates) for hit-testing
+            let popup_rect = area_resp.response.rect;
+
+            // Cache the popup rect for next frame's over_toolbar check
+            self.hl_note_popup_rect = Some(popup_rect);
+
             // Close popup on click outside (skip the frame it was just opened)
             if !close_popup {
                 if self.hl_note_just_opened {
                     self.hl_note_just_opened = false;
-                } else {
+                } else if !self.show_review_panel {
                     let any_click = ui.ctx().input(|i| i.pointer.primary_clicked());
                     if any_click {
-                        let over_note_popup = ui.ctx().memory(|mem| {
-                            mem.layer_id_at(pointer_pos.unwrap_or_default())
-                                .is_some_and(|layer| layer.id == note_toolbar_id)
-                        });
+                        let over_note_popup = ui.ctx()
+                            .pointer_interact_pos()
+                            .is_some_and(|pos| popup_rect.contains(pos));
                         if !over_note_popup {
                             close_popup = true;
                         }
@@ -1716,14 +1740,18 @@ impl ReaderApp {
             if close_popup {
                 self.clicked_highlight_id = None;
                 self.editing_note_buf.clear();
+                self.hl_note_popup_rect = None;
             }
+        } else {
+            // Popup not shown — clear cached rect
+            self.hl_note_popup_rect = None;
         }
 
         // ── CSC correction click detection + popup ──
         {
             // Check if user clicked on a correction rect (ReadWrite mode)
             let any_click = ui.ctx().input(|i| i.pointer.primary_clicked());
-            if any_click && self.csc_popup.is_none() && self.text_selection.is_none() {
+            if any_click && !self.show_review_panel && self.csc_popup.is_none() && self.text_selection.is_none() {
                 if let Some(click_pos) = ui.ctx().pointer_interact_pos() {
                     CSC_RECTS.with(|rects| {
                         let r = rects.borrow();
@@ -1865,5 +1893,6 @@ impl ReaderApp {
                 }
             }
         }
+
     }
 }
