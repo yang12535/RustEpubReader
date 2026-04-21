@@ -4,3 +4,7 @@ Cargo.lock
 .DS_Store
 .idea
 .vscode
+
+# Agent session / debug artifacts
+STATUS_*.md
+*_bug.json
