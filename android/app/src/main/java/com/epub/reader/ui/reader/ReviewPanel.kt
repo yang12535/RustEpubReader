@@ -41,24 +41,29 @@ private fun parseReviewCard(text: String): ReviewCard? {
     val parts = rest.split(Regex("[|｜]"))
     if (parts.size < 3) return null
 
+    // Find likes — last part containing 赞:
     val likesPart = parts.last().trim()
     val likesStr = likesPart.removePrefix("赞：").removePrefix("赞:").trim()
     val likes = likesStr.toIntOrNull() ?: return null
 
+    // Find timestamp — second-to-last part containing 时间:
     val timePart = parts[parts.size - 2].trim()
-    val timestamp = timePart.removePrefix("时间：").removePrefix("时间:").trim()
+    val timestampRaw = timePart.removePrefix("时间：").removePrefix("时间:").trim()
+    if (timestampRaw == timePart) return null  // neither prefix found
 
-    val firstPart = parts[0].trim()
-    val authorMarker = "作者："
-    val authorPos = firstPart.lastIndexOf(authorMarker)
-        .takeIf { it >= 0 }
-        ?: firstPart.lastIndexOf("作者:").takeIf { it >= 0 }
-        ?: return null
+    // Find author and content — search all parts via regex to tolerate varied positions
+    val authorRegex = Regex("""(.*)作者[:：]\s*(.+)""")
+    var content = ""
+    var author: String? = null
+    for (part in parts) {
+        val m = authorRegex.find(part.trim()) ?: continue
+        content = m.groupValues[1].trim()
+        author = m.groupValues[2].trim()
+        break
+    }
+    if (author == null) return null
 
-    val content = firstPart.substring(0, authorPos).trim()
-    val author = firstPart.substring(authorPos + authorMarker.length).trim()
-
-    return ReviewCard(index, content, author, timestamp, likes)
+    return ReviewCard(index, content, author, timestampRaw, likes)
 }
 
 private fun formatTimestamp(s: String): String {
@@ -88,9 +93,9 @@ fun ReviewPanel(
     // 是否显示全部评论（当从锚点打开时，默认只显示当前段）
     var showAll by remember(anchorId) { mutableStateOf(anchorId.isNullOrBlank()) }
 
-    // 根据 anchorId 和 showAll 筛选 blocks
+    // 根据 anchorId 和 showAll 筛选 blocks，同时去除重复的 "第X章 … - 段评" 标题
     val filteredBlocks = remember(blocks, anchorId, showAll) {
-        if (anchorId.isNullOrBlank() || showAll) {
+        val baseList = if (anchorId.isNullOrBlank() || showAll) {
             blocks
         } else {
             val result = mutableListOf<ContentBlock>()
@@ -110,6 +115,14 @@ fun ReviewPanel(
                 }
             }
             if (result.isEmpty()) blocks else result
+        }
+        // 去重：每个 "第X章 … - 段评" 标题只保留首次出现
+        val seenTitles = mutableSetOf<String>()
+        baseList.filter { block ->
+            if (block is ContentBlock.Heading) {
+                val text = block.spans.joinToString("") { it.text }
+                if (text.endsWith(" - 段评")) seenTitles.add(text) else true
+            } else true
         }
     }
 
@@ -167,20 +180,8 @@ fun ReviewPanel(
             Spacer(Modifier.height(8.dp))
 
             // Content
-            val seenReviewTitles = remember { mutableSetOf<String>() }
             LazyColumn {
                 itemsIndexed(filteredBlocks, key = { index, _ -> index }) { _, block ->
-                    // 过滤重复的 "第X章 ... - 段评" 标题
-                    if (block is ContentBlock.Heading) {
-                        val text = block.spans.joinToString("") { it.text }
-                        if (text.endsWith(" - 段评")) {
-                            if (seenReviewTitles.contains(text)) {
-                                return@itemsIndexed
-                            }
-                            seenReviewTitles.add(text)
-                        }
-                    }
-
                     when (block) {
                         is ContentBlock.Separator -> {
                             HorizontalDivider(
