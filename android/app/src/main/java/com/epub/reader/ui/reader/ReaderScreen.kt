@@ -203,7 +203,7 @@ fun ReaderScreen(
     reviewChapterIndices: Set<Int> = emptySet(),
     showReviewPanel: Boolean = false,
     reviewPanelChapter: Int? = null,
-    onOpenReviewPanel: (Int) -> Unit = {},
+    onOpenReviewPanel: (Int, String?) -> Unit = { _, _ -> },
     onCloseReviewPanel: () -> Unit = {}
 ) {
     var textSelection by remember { mutableStateOf<TextSelectionState?>(null) }
@@ -250,7 +250,8 @@ fun ReaderScreen(
                         if (target >= 0) {
                             // Intercept review chapters (段评) — show overlay instead of navigating
                             if (reviewChapterIndices.contains(target)) {
-                                onOpenReviewPanel(target)
+                                val anchor = link.substringAfter('#', "")
+                                onOpenReviewPanel(target, anchor.takeIf { it.isNotBlank() })
                             } else {
                                 onChapterChange(target)
                             }

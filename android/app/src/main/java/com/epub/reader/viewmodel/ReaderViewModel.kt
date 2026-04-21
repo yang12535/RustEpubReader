@@ -69,7 +69,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     var fontSize by mutableFloatStateOf(18f)
         private set
     var isDarkMode by mutableStateOf(false)
-    var isScrollMode by mutableStateOf(true)
+    var isScrollMode by mutableStateOf(false)
     var readerBgColorIndex by mutableIntStateOf(0)
         private set
     var readerCustomBgColorArgb by mutableIntStateOf(0xFFF5F0E8.toInt())
@@ -201,6 +201,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         private set
     var showReviewPanel by mutableStateOf(false)
     var reviewPanelChapter by mutableStateOf<Int?>(null)
+    var reviewPanelAnchor by mutableStateOf<String?>(null)
 
     // ---- CSC 贡献状态 ----
     var showContributeDialog by mutableStateOf(false)
@@ -324,7 +325,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private fun loadSettings() {
         fontSize = prefs.getFloat(PrefKeys.FONT_SIZE, 18f).coerceIn(12f, 40f)
         isDarkMode = prefs.getBoolean(PrefKeys.DARK_MODE, false)
-        isScrollMode = prefs.getBoolean(PrefKeys.SCROLL_MODE, true)
+        isScrollMode = prefs.getBoolean(PrefKeys.SCROLL_MODE, false)
 
         readerBgColorIndex = prefs.getInt(PrefKeys.BG_COLOR_INDEX, 0).coerceAtLeast(0)
         readerCustomBgColorArgb = prefs.getInt(PrefKeys.CUSTOM_BG_COLOR, 0xFFF5F0E8.toInt())
@@ -814,14 +815,16 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun openReviewPanel(chapterIndex: Int) {
+    fun openReviewPanel(chapterIndex: Int, anchor: String? = null) {
         showReviewPanel = true
         reviewPanelChapter = chapterIndex
+        reviewPanelAnchor = anchor
     }
 
     fun closeReviewPanel() {
         showReviewPanel = false
         reviewPanelChapter = null
+        reviewPanelAnchor = null
     }
 
     fun setPage(page: Int) {

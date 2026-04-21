@@ -336,7 +336,7 @@ private fun MainContent(vm: ReaderViewModel) {
                         reviewChapterIndices = vm.reviewChapterIndices,
                         showReviewPanel = vm.showReviewPanel,
                         reviewPanelChapter = vm.reviewPanelChapter,
-                        onOpenReviewPanel = { vm.openReviewPanel(it) },
+                        onOpenReviewPanel = { idx, anchor -> vm.openReviewPanel(idx, anchor) },
                         onCloseReviewPanel = { vm.closeReviewPanel() }
                     )
 
@@ -352,6 +352,7 @@ private fun MainContent(vm: ReaderViewModel) {
                             ReviewPanel(
                                 chapterTitle = reviewCh.title,
                                 blocks = reviewCh.blocks,
+                                anchorId = vm.reviewPanelAnchor,
                                 fontSize = vm.fontSize,
                                 onDismiss = { vm.closeReviewPanel() }
                             )
