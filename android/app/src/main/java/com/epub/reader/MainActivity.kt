@@ -329,7 +329,8 @@ private fun MainContent(vm: ReaderViewModel) {
                         cscModelReady = vm.cscModelReady,
                         cscModelLoading = vm.cscModelLoading,
                         cscCorrections = vm.cscCorrections,
-                        onDownloadCscModel = { vm.downloadCscModel() }
+                        onDownloadCscModel = { vm.downloadCscModel() },
+                        onCscCorrectionStatusChange = { correction, status -> vm.updateCorrectionStatus(correction, status) }
                     )
 
                     // 标注面板
