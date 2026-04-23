@@ -547,6 +547,7 @@ pub struct ReaderApp {
     pub sharing_status: Arc<Mutex<String>>,
     pub server_stop_flag: Arc<AtomicBool>,
     /// Held to keep the discovery listener thread alive.
+    #[allow(dead_code)]
     pub discovery_stop_flag: Arc<AtomicBool>,
     pub discovered_peers: Arc<Mutex<Vec<DiscoveredPeer>>>,
     pub pending_sync_updates: Arc<Mutex<Vec<reader_core::sharing::ProgressEntry>>>,
