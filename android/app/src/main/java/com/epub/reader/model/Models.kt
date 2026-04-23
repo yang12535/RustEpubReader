@@ -70,8 +70,8 @@ data class BookMetadataDto(
     val chapterCount: Int,
     val toc: List<TocEntryDto>,
     val hasCover: Boolean,
-    @SerialName("chapter_reviews") val chapterReviews: List<ChapterReviewEntry> = emptyList(),
-    @SerialName("review_chapter_indices") val reviewChapterIndices: List<Int> = emptyList()
+    @SerialName("chapterReviews") val chapterReviews: List<ChapterReviewEntry> = emptyList(),
+    @SerialName("reviewChapterIndices") val reviewChapterIndices: List<Int> = emptyList()
 )
 
 /** 方便与老代码兼容保留的 Chapter 定义（如果需要映射） */
