@@ -77,8 +77,8 @@ impl ReaderApp {
                         if self.current_chapter != ch_idx {
                             self.current_chapter = ch_idx;
                             self.current_page = 0;
+                            self.pages_dirty = true;
                         }
-                        self.pages_dirty = true;
                         self.search_target_block = Some(block_idx);
                     }
                 } else if !self.search_query.is_empty() {
