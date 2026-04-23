@@ -130,11 +130,7 @@ fun ReviewPanel(
                             is ContentBlock.Paragraph -> block.anchor_id
                             else -> null
                         }
-                        blockAnchor != null && (
-                            blockAnchor == anchorId ||
-                            blockAnchor.contains(anchorId) ||
-                            anchorId.contains(blockAnchor)
-                        )
+                        blockAnchor != null && blockAnchor == anchorId
                     }
                 }
             }

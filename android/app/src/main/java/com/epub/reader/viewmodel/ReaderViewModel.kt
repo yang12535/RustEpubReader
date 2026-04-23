@@ -144,7 +144,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         private set
     var showReviewPanel by mutableStateOf(false)
     var reviewPanelChapter by mutableStateOf<Int?>(null)
-    var reviewPanelAnchor: String? = null
+    var reviewPanelAnchor by mutableStateOf<String?>(null)
 
     fun updateCorrectionStatus(correction: com.zhongbai233.epub.reader.ui.reader.CscBlockCorrection, newStatus: com.zhongbai233.epub.reader.csc.CorrectionStatus) {
         cscCorrections = cscCorrections.map { c ->
