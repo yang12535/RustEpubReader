@@ -166,6 +166,8 @@
   "update.up_to_date": "You are up to date",
   "update.new_version": "New version available: {}",
   "update.download_update": "Download & Update",
+  "update.download_cdn": "CDN Download",
+  "update.download_github": "GitHub Download",
   "update.failed": "Update failed: {}",
   "update.restarting": "Update complete, restarting…",
 
