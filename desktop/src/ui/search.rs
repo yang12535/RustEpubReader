@@ -23,7 +23,7 @@ impl ReaderApp {
                             .hint_text(self.i18n.t("search.placeholder"))
                             .desired_width(ui.available_width() - 60.0),
                     );
-                    if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                         run_search = true;
                     }
                     if ui.button(self.i18n.t("search.go")).clicked() {
@@ -36,10 +36,18 @@ impl ReaderApp {
                         self.search_results =
                             reader_core::search::search_book(book, &self.search_query, false);
                         self.search_selected = None;
+                        self.search_target_block = None;
+                        crate::ui::reader_state::SEARCH_HIGHLIGHT_BLOCK.set(None);
                     }
                 }
 
-                ui.add_space(6.0);
+                ui.add_space(2.0);
+                ui.label(
+                    egui::RichText::new(self.i18n.t("search.hint"))
+                        .size(11.0)
+                        .color(egui::Color32::GRAY),
+                );
+                ui.add_space(4.0);
                 if !self.search_results.is_empty() {
                     ui.label(self.i18n.tf1(
                         "search.results_count",
@@ -61,10 +69,11 @@ impl ReaderApp {
                                     self.search_selected = Some(idx);
                                     // Jump to the chapter
                                     if self.current_chapter != result.chapter_index {
-                                        self.current_chapter = result.chapter_index;
-                                        self.pages_dirty = true;
-                                        self.current_page = 0;
-                                    }
+                                    self.current_chapter = result.chapter_index;
+                                    self.current_page = 0;
+                                }
+                                self.pages_dirty = true;
+                                self.search_target_block = Some(result.block_index);
                                 }
                             }
                         });
