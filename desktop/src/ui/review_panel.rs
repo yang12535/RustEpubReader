@@ -48,12 +48,17 @@ fn parse_review_card(text: &str) -> Option<ReviewCard> {
 
     // First part: "【内容】 作者：吃草莓布丁吗"
     let first_part = parts[0].trim();
-    let author_marker = "作者：";
-    let author_pos = first_part
-        .rfind(author_marker)
-        .or_else(|| first_part.rfind("作者:"))?;
+    const AUTHOR_FULL: &str = "作者："; // full-width colon (9 bytes)
+    const AUTHOR_ASCII: &str = "作者:"; // ASCII colon (7 bytes)
+    let (author_pos, author_marker_len) = if let Some(p) = first_part.rfind(AUTHOR_FULL) {
+        (p, AUTHOR_FULL.len())
+    } else if let Some(p) = first_part.rfind(AUTHOR_ASCII) {
+        (p, AUTHOR_ASCII.len())
+    } else {
+        return None;
+    };
     let content = first_part[..author_pos].trim().to_string();
-    let author = first_part[author_pos + author_marker.len()..].trim().to_string();
+    let author = first_part[author_pos + author_marker_len..].trim().to_string();
 
     Some(ReviewCard {
         index,

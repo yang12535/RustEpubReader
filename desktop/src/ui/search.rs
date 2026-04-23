@@ -23,7 +23,7 @@ impl ReaderApp {
                             .hint_text(self.i18n.t("search.placeholder"))
                             .desired_width(ui.available_width() - 60.0),
                     );
-                    if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    if resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                         run_search = true;
                     }
                     if ui.button(self.i18n.t("search.go")).clicked() {
@@ -55,28 +55,32 @@ impl ReaderApp {
                     ));
                     ui.add_space(4.0);
 
+                    // Collect jump target without cloning the whole results vec
+                    let mut jump_to: Option<(usize, usize, usize)> = None;
                     egui::ScrollArea::vertical()
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
-                            let results = self.search_results.clone();
-                            for (idx, result) in results.iter().enumerate() {
+                            for (idx, result) in self.search_results.iter().enumerate() {
                                 let selected = self.search_selected == Some(idx);
                                 let resp = ui.selectable_label(
                                     selected,
                                     format!("[{}] {}", result.chapter_title, result.context),
                                 );
                                 if resp.clicked() {
-                                    self.search_selected = Some(idx);
-                                    // Jump to the chapter
-                                    if self.current_chapter != result.chapter_index {
-                                    self.current_chapter = result.chapter_index;
-                                    self.current_page = 0;
-                                }
-                                self.pages_dirty = true;
-                                self.search_target_block = Some(result.block_index);
+                                    jump_to =
+                                        Some((result.chapter_index, result.block_index, idx));
                                 }
                             }
                         });
+                    if let Some((ch_idx, block_idx, sel_idx)) = jump_to {
+                        self.search_selected = Some(sel_idx);
+                        if self.current_chapter != ch_idx {
+                            self.current_chapter = ch_idx;
+                            self.current_page = 0;
+                        }
+                        self.pages_dirty = true;
+                        self.search_target_block = Some(block_idx);
+                    }
                 } else if !self.search_query.is_empty() {
                     ui.label(self.i18n.t("search.no_results"));
                 }
