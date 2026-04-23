@@ -36,3 +36,22 @@ vendored-openssl = ["openssl/vendored"]
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
+
+[package.metadata.deb]
+name = "rust-epub-reader"
+maintainer = "zhongbai233 <zhongbai233@example.com>"
+copyright = "2026, zhongbai233"
+license-file = ["../LICENSE", "4"]
+extended-description = """\
+A cross-platform EPUB reader built with Rust. \
+Supports desktop (Linux/Windows/macOS) and Android. \
+Features include library management, reading modes, \
+TOC navigation, theme customization, and LAN sharing."""
+depends = "$auto, libz1, libasound2, libssl3, libstdc++6"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/rust_epub_reader", "usr/bin/rust-epub-reader", "755"],
+    ["../icon/ReaderIcon.png", "usr/share/icons/hicolor/256x256/apps/rust-epub-reader.png", "644"],
+    ["../debian/rust-epub-reader.desktop", "usr/share/applications/rust-epub-reader.desktop", "644"],
+]
