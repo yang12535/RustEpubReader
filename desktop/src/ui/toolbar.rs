@@ -94,6 +94,10 @@ impl ReaderApp {
                         .clicked()
                     {
                         self.show_settings = !self.show_settings;
+                        if self.show_settings {
+                            self.show_search = false;
+                            self.show_annotations = false;
+                        }
                     }
 
                     ui.separator();
@@ -105,6 +109,7 @@ impl ReaderApp {
                     {
                         self.show_search = !self.show_search;
                         if self.show_search {
+                            self.show_settings = false;
                             self.show_annotations = false;
                         }
                     }
@@ -116,6 +121,7 @@ impl ReaderApp {
                     {
                         self.show_annotations = !self.show_annotations;
                         if self.show_annotations {
+                            self.show_settings = false;
                             self.show_search = false;
                         }
                     }
@@ -189,6 +195,10 @@ impl ReaderApp {
                             .clicked()
                         {
                             self.show_settings = !self.show_settings;
+                            if self.show_settings {
+                                self.show_search = false;
+                                self.show_annotations = false;
+                            }
                             ui.close_menu();
                         }
 
@@ -200,6 +210,7 @@ impl ReaderApp {
                         {
                             self.show_search = !self.show_search;
                             if self.show_search {
+                                self.show_settings = false;
                                 self.show_annotations = false;
                             }
                             ui.close_menu();
@@ -213,6 +224,7 @@ impl ReaderApp {
                         {
                             self.show_annotations = !self.show_annotations;
                             if self.show_annotations {
+                                self.show_settings = false;
                                 self.show_search = false;
                             }
                             ui.close_menu();
@@ -299,6 +311,9 @@ impl ReaderApp {
                         .clicked()
                     {
                         self.dark_mode = !self.dark_mode;
+                        self.show_settings = true;
+                        self.show_search = false;
+                        self.show_annotations = false;
                     }
 
                     ui.separator();

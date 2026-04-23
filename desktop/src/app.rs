@@ -576,6 +576,8 @@ pub struct ReaderApp {
     pub search_query: String,
     pub search_results: Vec<reader_core::search::SearchResult>,
     pub search_selected: Option<usize>,
+    /// Block index to jump to after a search result is clicked (used for page-mode positioning).
+    pub search_target_block: Option<usize>,
     // ── Annotations ──
     pub show_annotations: bool,
     pub book_config: Option<reader_core::library::BookConfig>,
@@ -678,6 +680,8 @@ pub struct ReaderApp {
     pub review_panel_just_opened: bool,
     /// Computed scroll offset for the current anchor. Applied once when opening.
     pub review_panel_scroll_offset: Option<f32>,
+    /// When true, show all reviews; when false, filter to the anchored paragraph only.
+    pub review_panel_show_all: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -855,6 +859,7 @@ impl Default for ReaderApp {
             search_query: String::new(),
             search_results: Vec::new(),
             search_selected: None,
+            search_target_block: None,
             // Annotations
             show_annotations: false,
             book_config: None,
@@ -935,6 +940,7 @@ impl Default for ReaderApp {
             review_panel_anchor: None,
             review_panel_just_opened: false,
             review_panel_scroll_offset: None,
+            review_panel_show_all: true,
         };
 
         if let Some(settings) = AppSettings::load(&app.data_dir) {
@@ -1148,6 +1154,7 @@ impl ReaderApp {
                 self.review_panel_anchor = None;
                 self.review_panel_just_opened = false;
                 self.review_panel_scroll_offset = None;
+                self.review_panel_show_all = true;
                 // Load annotation config and start reading timer
                 self.book_config =
                     reader_core::library::Library::read_book_config(&self.data_dir, &entry.id);
