@@ -148,11 +148,11 @@ fun ReviewPanel(
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
-            // Filter blocks by anchor if specified
+            // Filter blocks by anchor if specified; fallback to all if no match
             val filteredBlocks = remember(blocks, anchorId) {
                 if (anchorId.isNullOrBlank()) blocks
                 else {
-                    blocks.filter { block ->
+                    val matched = blocks.filter { block ->
                         val blockAnchor = when (block) {
                             is ContentBlock.Heading -> block.anchor_id
                             is ContentBlock.Paragraph -> block.anchor_id
@@ -160,6 +160,8 @@ fun ReviewPanel(
                         }
                         blockAnchor != null && blockAnchor == anchorId
                     }
+                    // Review chapter paragraphs usually have no id; show all if nothing matches
+                    matched.ifEmpty { blocks }
                 }
             }
 
