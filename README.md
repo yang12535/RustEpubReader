@@ -50,7 +50,7 @@ Windows 下会自动嵌入应用图标（需要 `rc.exe`）。
 
 | 用途 | 库 |
 |------|----|
-| EPUB 解析 | `epub` |
+| EPUB 解析 | `rbook` |
 | HTML 提取 | `scraper` |
 | 桌面 UI | `eframe` / `egui` |
 | 文件对话框 | `rfd` |
@@ -60,4 +60,4 @@ Windows 下会自动嵌入应用图标（需要 `rc.exe`）。
 
 ## License
 
-见 [LICENSE](LICENSE)。
+本项目采用 [Apache License 2.0](LICENSE)。

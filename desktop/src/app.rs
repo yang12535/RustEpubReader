@@ -1507,6 +1507,7 @@ impl ReaderApp {
     fn render_update_dialog(&mut self, ctx: &egui::Context) {
         let tag = self.update_latest_tag.clone().unwrap_or_default();
         let mut open = self.show_update_dialog;
+        let mut close_requested = false;
         egui::Window::new(self.i18n.t("update.check"))
             .open(&mut open)
             .collapsible(false)
@@ -1524,11 +1525,17 @@ impl ReaderApp {
 
                     match &self.update_state {
                         UpdateState::Available(_) => {
-                            ui.horizontal(|ui| {
+                            let button_size = egui::vec2(140.0, 32.0);
+                            ui.horizontal_centered(|ui| {
                                 if ui
-                                    .button(
-                                        egui::RichText::new(self.i18n.t("update.download_update"))
+                                    .add_sized(
+                                        button_size,
+                                        egui::Button::new(
+                                            egui::RichText::new(
+                                                self.i18n.t("update.download_update"),
+                                            )
                                             .size(14.0),
+                                        ),
                                     )
                                     .clicked()
                                 {
@@ -1570,13 +1577,16 @@ impl ReaderApp {
                                     self._update_progress = Some(progress_for_ui);
                                 }
                                 if ui
-                                    .button(
-                                        egui::RichText::new(self.i18n.t("feedback.not_now"))
-                                            .size(14.0),
+                                    .add_sized(
+                                        button_size,
+                                        egui::Button::new(
+                                            egui::RichText::new(self.i18n.t("feedback.not_now"))
+                                                .size(14.0),
+                                        ),
                                     )
                                     .clicked()
                                 {
-                                    self.show_update_dialog = false;
+                                    close_requested = true;
                                 }
                             });
                         }
@@ -1600,7 +1610,7 @@ impl ReaderApp {
                             );
                             ui.add_space(4.0);
                             if ui.button(self.i18n.t("update.check")).clicked() {
-                                self.show_update_dialog = false;
+                                close_requested = true;
                                 self.update_state = UpdateState::Idle;
                             }
                         }
@@ -1616,6 +1626,9 @@ impl ReaderApp {
                     ui.add_space(8.0);
                 });
             });
+        if close_requested {
+            open = false;
+        }
         self.show_update_dialog = open;
     }
 }
