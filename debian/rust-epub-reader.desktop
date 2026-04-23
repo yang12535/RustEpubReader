@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=Rust Epub Reader
-Comment=Cross-platform EPUB reader built with Rust
-Exec=rust-epub-reader
-Icon=rust-epub-reader
-Type=Application
-Categories=Office;Viewer;
-Terminal=false
-StartupNotify=true
