@@ -146,6 +146,15 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_openBook(
         Err(_) => return std::ptr::null_mut(),
     };
 
+    let chapter_reviews: Vec<serde_json::Value> = book
+        .chapter_reviews
+        .iter()
+        .map(|(main_chapter_index, review_chapter_index)| {
+            serde_json::json!({ "main": main_chapter_index, "review": review_chapter_index })
+        })
+        .collect();
+    let review_chapter_indices: Vec<usize> = book.review_chapter_indices.iter().copied().collect();
+
     let json = serde_json::json!({
         "title": book.title,
         "chapterCount": book.chapters.len(),
@@ -154,6 +163,8 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_openBook(
             "chapterIndex": t.chapter_index,
         })).collect::<Vec<_>>(),
         "hasCover": book.cover_data.is_some(),
+        "chapterReviews": chapter_reviews,
+        "reviewChapterIndices": review_chapter_indices,
     });
 
     jni_string_or_null!(env, json.to_string())
@@ -187,7 +198,7 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_getChapter(
         .blocks
         .iter()
         .map(|block| match block {
-            reader_core::epub::ContentBlock::Paragraph { spans } => {
+            reader_core::epub::ContentBlock::Paragraph { spans, .. } => {
                 serde_json::json!({
                     "type": "paragraph",
                     "spans": spans.iter().map(|s| serde_json::json!({
@@ -197,7 +208,7 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_getChapter(
                     })).collect::<Vec<_>>(),
                 })
             }
-            reader_core::epub::ContentBlock::Heading { level, spans } => {
+            reader_core::epub::ContentBlock::Heading { level, spans, .. } => {
                 serde_json::json!({
                     "type": "heading",
                     "level": level,
@@ -1713,7 +1724,7 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_collectCscSamples(
             None => continue,
         };
         let block_text: String = match block {
-            ContentBlock::Paragraph { spans } => spans.iter().map(|s| s.text.as_str()).collect(),
+            ContentBlock::Paragraph { spans, .. } => spans.iter().map(|s| s.text.as_str()).collect(),
             ContentBlock::Heading { spans, .. } => spans.iter().map(|s| s.text.as_str()).collect(),
             _ => continue,
         };
