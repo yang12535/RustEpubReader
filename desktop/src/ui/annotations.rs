@@ -114,13 +114,12 @@ impl ReaderApp {
                                         .map(|block| {
                                             let full: String = match block {
                                                 reader_core::epub::ContentBlock::Paragraph {
-                                                    spans,
+                                                    spans, ..
                                                 } => {
                                                     spans.iter().map(|s| s.text.as_str()).collect()
                                                 }
                                                 reader_core::epub::ContentBlock::Heading {
-                                                    spans,
-                                                    ..
+                                                    spans, ..
                                                 } => {
                                                     spans.iter().map(|s| s.text.as_str()).collect()
                                                 }

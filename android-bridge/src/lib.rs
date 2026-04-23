@@ -187,7 +187,7 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_getChapter(
         .blocks
         .iter()
         .map(|block| match block {
-            reader_core::epub::ContentBlock::Paragraph { spans } => {
+            reader_core::epub::ContentBlock::Paragraph { spans, .. } => {
                 serde_json::json!({
                     "type": "paragraph",
                     "spans": spans.iter().map(|s| serde_json::json!({
@@ -197,7 +197,7 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_getChapter(
                     })).collect::<Vec<_>>(),
                 })
             }
-            reader_core::epub::ContentBlock::Heading { level, spans } => {
+            reader_core::epub::ContentBlock::Heading { level, spans, .. } => {
                 serde_json::json!({
                     "type": "heading",
                     "level": level,
@@ -1713,7 +1713,7 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_collectCscSamples(
             None => continue,
         };
         let block_text: String = match block {
-            ContentBlock::Paragraph { spans } => spans.iter().map(|s| s.text.as_str()).collect(),
+            ContentBlock::Paragraph { spans, .. } => spans.iter().map(|s| s.text.as_str()).collect(),
             ContentBlock::Heading { spans, .. } => spans.iter().map(|s| s.text.as_str()).collect(),
             _ => continue,
         };
