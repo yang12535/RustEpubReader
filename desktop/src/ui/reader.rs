@@ -211,7 +211,9 @@ impl ReaderApp {
 
                 if self.scroll_mode {
                     let mut scroll_area = egui::ScrollArea::vertical().auto_shrink([false; 2]);
-                    if self.scroll_to_top {
+                    if let Some(y) = self.anchor_scroll_offset.take() {
+                        scroll_area = scroll_area.vertical_scroll_offset(y);
+                    } else if self.scroll_to_top {
                         scroll_area = scroll_area.vertical_scroll_offset(0.0);
                         self.scroll_to_top = false;
                     }
@@ -914,6 +916,7 @@ impl ReaderApp {
                         && self.clicked_highlight_id.is_none()
                         && self.csc_popup.is_none()
                         && !self.csc_custom_replace_active
+                        && !self.show_review_panel
                     {
                         let pointer_in_page = ui.input(|i| {
                             i.pointer
@@ -1007,7 +1010,53 @@ impl ReaderApp {
                 || lowered.starts_with("tel:")
             {
                 ui.ctx().open_url(egui::OpenUrl::new_tab(url));
-            } else if !url.starts_with('#') {
+            } else if url.starts_with('#') {
+                let anchor = &url[1..];
+                if let Some(book) = &self.book {
+                    if let Some(chapter) = book.chapters.get(self.current_chapter) {
+                        if let Some(block_idx) = chapter.blocks.iter().position(|block| {
+                            match block {
+                                ContentBlock::Heading { anchor_id: Some(id), .. } => id == anchor,
+                                ContentBlock::Paragraph { anchor_id: Some(id), .. } => id == anchor,
+                                _ => false,
+                            }
+                        }) {
+                            if self.scroll_mode {
+                                let available_width = ui.available_width();
+                                let text_width = if available_width > DUAL_COLUMN_THRESHOLD {
+                                    let col_w = (available_width - DUAL_COLUMN_GAP) / 2.0;
+                                    (col_w - DUAL_COLUMN_PADDING).min(MAX_COLUMN_WIDTH)
+                                } else {
+                                    MAX_TEXT_WIDTH_SINGLE.min(available_width - SINGLE_TEXT_PADDING)
+                                };
+                                let line_height = self.font_size * line_spacing();
+                                let mut offset = 0.0;
+                                for (i, block) in chapter.blocks.iter().enumerate() {
+                                    if i >= block_idx {
+                                        break;
+                                    }
+                                    offset += estimate_block_height(
+                                        block,
+                                        self.font_size,
+                                        line_height,
+                                        text_width,
+                                    );
+                                }
+                                self.anchor_scroll_offset = Some(offset);
+                            } else {
+                                for (page_idx, (start, end)) in
+                                    self.page_block_ranges.iter().enumerate()
+                                {
+                                    if block_idx >= *start && block_idx < *end {
+                                        self.current_page = page_idx;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
                 let normalized = normalize_epub_href(&url);
                 let target_idx = if !normalized.is_empty() {
                     self.book.as_ref().and_then(|book| {
@@ -1025,10 +1074,18 @@ impl ReaderApp {
                     None
                 };
                 if let Some(idx) = target_idx {
-                    self.current_chapter = idx;
-                    self.current_page = 0;
-                    self.scroll_to_top = true;
-                    self.pages_dirty = true;
+                    // Check if target is a review chapter (段评) — show overlay instead of navigating
+                    if self.book.as_ref().map_or(false, |b| b.review_chapter_indices.contains(&idx)) {
+                        self.show_review_panel = true;
+                        self.review_panel_chapter = Some(idx);
+                        self.review_panel_anchor = url.split('#').nth(1).map(|s| s.to_string());
+                        self.review_panel_just_opened = true;
+                    } else {
+                        self.current_chapter = idx;
+                        self.current_page = 0;
+                        self.scroll_to_top = true;
+                        self.pages_dirty = true;
+                    }
                 } else {
                     ui.ctx().open_url(egui::OpenUrl::new_tab(url));
                 }
@@ -1205,6 +1262,7 @@ impl ReaderApp {
                         && self.text_selection.is_none()
                         && !self.csc_custom_replace_active
                         && self.csc_popup.is_none()
+                        && !self.show_review_panel
                     {
                         if let Some(page_rect) = self.paging_page_rect {
                             if page_rect.contains(press_pos) {
@@ -1635,7 +1693,7 @@ impl ReaderApp {
                 });
 
             // Close popup on click outside (skip the frame it was just opened)
-            if !close_popup {
+            if !close_popup && !self.show_review_panel {
                 if self.hl_note_just_opened {
                     self.hl_note_just_opened = false;
                 } else {

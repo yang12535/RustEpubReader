@@ -29,6 +29,12 @@ impl ReaderApp {
             {
                 self.flush_reading_stats();
                 self.view = AppView::Library;
+                // Reset review panel state when returning to library
+                self.show_review_panel = false;
+                self.review_panel_chapter = None;
+                self.review_panel_anchor = None;
+                self.review_panel_just_opened = false;
+                self.review_panel_scroll_offset = None;
             }
             ui.add_space(2.0);
             if ui

@@ -2,7 +2,7 @@
 mod html;
 mod image;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use epub::doc::EpubDoc;
@@ -20,6 +20,10 @@ pub struct EpubBook {
     pub cover_data: Option<Vec<u8>>,
     #[serde(skip)]
     pub fonts: Vec<(String, Vec<u8>)>,
+    #[serde(default)]
+    pub chapter_reviews: HashMap<usize, usize>,
+    #[serde(default)]
+    pub review_chapter_indices: HashSet<usize>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -167,6 +171,28 @@ impl EpubBook {
                 .collect();
         }
 
+        // Identify review chapters (段评) and build mapping
+        let mut chapter_reviews = HashMap::new();
+        let mut review_chapter_indices = HashSet::new();
+        const REVIEW_SUFFIX: &str = " - 段评";
+        for (idx, ch) in chapters.iter().enumerate() {
+            if ch.title.ends_with(REVIEW_SUFFIX) {
+                review_chapter_indices.insert(idx);
+                let base_title = &ch.title[..ch.title.len() - REVIEW_SUFFIX.len()];
+                // Match to the Nth main chapter with the same title
+                let review_count = chapters[..idx].iter().filter(|c| c.title == ch.title).count();
+                if let Some(main_idx) = chapters
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.title == base_title)
+                    .nth(review_count)
+                    .map(|(i, _)| i)
+                {
+                    chapter_reviews.insert(main_idx, idx);
+                }
+            }
+        }
+
         let mut fonts = Vec::new();
         let font_mimes = [
             "application/x-font-ttf",
@@ -199,6 +225,8 @@ impl EpubBook {
             toc,
             cover_data,
             fonts,
+            chapter_reviews,
+            review_chapter_indices,
         })
     }
 
