@@ -26,6 +26,17 @@ private data class ReviewCard(
     val likes: Int
 )
 
+/** Format Unix timestamp to readable date string */
+private fun formatTimestamp(raw: String): String {
+    val ts = raw.toLongOrNull() ?: return raw
+    return try {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+        sdf.format(java.util.Date(ts * 1000))
+    } catch (_: Exception) {
+        raw
+    }
+}
+
 /**
  * Try to parse a review paragraph into structured card data.
  * Expected format: "1. 【内容】 作者：xxx | 时间：xxx | 赞：52"
@@ -39,29 +50,46 @@ private fun parseReviewCard(text: String): ReviewCard? {
     val index = trimmed.substring(0, dotPos).trim().toIntOrNull() ?: return null
     val rest = trimmed.substring(dotPos + 1).trim()
 
-    // Split by " | " or " ｜ "
-    val parts = rest.split("|", "｜")
-    if (parts.size < 3) return null
+    // Parse from the end to avoid | inside review content causing offset
+    // Step 1: find "赞：xx" at the end
+    val likesDelims = listOf(" | 赞：", " | 赞:", " ｜ 赞：", " ｜ 赞:", "|赞：", "|赞:", "｜赞：", "｜赞:")
+    var likesPart: String? = null
+    var beforeLikes: String? = null
+    for (delim in likesDelims) {
+        val pos = rest.lastIndexOf(delim)
+        if (pos >= 0) {
+            likesPart = rest.substring(pos + delim.length).trim()
+            beforeLikes = rest.substring(0, pos)
+            break
+        }
+    }
+    if (likesPart == null) return null
+    val likes = likesPart.toIntOrNull() ?: return null
 
-    // Last part: "赞：52"
-    val likesPart = parts.last().trim()
-    val likesStr = likesPart.removePrefix("赞：").removePrefix("赞:").trim()
-    val likes = likesStr.toIntOrNull() ?: return null
+    // Step 2: find "时间：xxx" before likes
+    val timeDelims = listOf(" | 时间：", " | 时间:", " ｜ 时间：", " ｜ 时间:", "|时间：", "|时间:", "｜时间：", "｜时间:")
+    var timestampRaw: String? = null
+    var contentAuthorPart: String? = null
+    for (delim in timeDelims) {
+        val pos = beforeLikes!!.lastIndexOf(delim)
+        if (pos >= 0) {
+            timestampRaw = beforeLikes.substring(pos + delim.length).trim()
+            contentAuthorPart = beforeLikes.substring(0, pos)
+            break
+        }
+    }
+    if (timestampRaw == null) return null
+    val timestamp = formatTimestamp(timestampRaw)
 
-    // Second-to-last part: "时间：1770036499"
-    val timePart = parts[parts.size - 2].trim()
-    val timestamp = timePart.removePrefix("时间：").removePrefix("时间:").trim()
-
-    // First part: "【内容】 作者：吃草莓布丁吗"
-    val firstPart = parts[0].trim()
+    // Step 3: split content and author from the remaining part
     val authorFull = "作者："
     val authorAscii = "作者:"
-    val authorPos = firstPart.lastIndexOf(authorFull).takeIf { it >= 0 }
-        ?: firstPart.lastIndexOf(authorAscii).takeIf { it >= 0 }
+    val authorPos = contentAuthorPart!!.lastIndexOf(authorFull).takeIf { it >= 0 }
+        ?: contentAuthorPart.lastIndexOf(authorAscii).takeIf { it >= 0 }
         ?: return null
-    val authorMarkerLen = if (firstPart.contains(authorFull)) authorFull.length else authorAscii.length
-    val content = firstPart.substring(0, authorPos).trim()
-    val author = firstPart.substring(authorPos + authorMarkerLen).trim()
+    val authorMarkerLen = if (contentAuthorPart.contains(authorFull)) authorFull.length else authorAscii.length
+    val content = contentAuthorPart.substring(0, authorPos).trim()
+    val author = contentAuthorPart.substring(authorPos + authorMarkerLen).trim()
 
     return ReviewCard(index, content, author, timestamp, likes)
 }
