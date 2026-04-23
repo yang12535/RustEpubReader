@@ -47,7 +47,7 @@ impl ReaderApp {
             .min_width(420.0)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
-                let state = self.txt_import.as_mut().unwrap();
+                let state = self.txt_import.as_mut().expect("txt_import state");
 
                 ui.add_space(8.0);
 
@@ -133,7 +133,7 @@ impl ReaderApp {
                     egui::ScrollArea::vertical()
                         .max_height(300.0)
                         .show(ui, |ui| {
-                            let state = self.txt_import.as_ref().unwrap();
+                            let state = self.txt_import.as_ref().expect("txt_import state");
                             for (i, ch) in state.previews.iter().enumerate() {
                                 ui.horizontal(|ui| {
                                     ui.label(
@@ -159,13 +159,17 @@ impl ReaderApp {
                 ui.add_space(8.0);
 
                 // ── 错误提示 ──
-                if let Some(e) = &self.txt_import.as_ref().unwrap().error {
+                if let Some(e) = &self.txt_import.as_ref().expect("txt_import state").error {
                     ui.colored_label(egui::Color32::RED, e);
                     ui.add_space(4.0);
                 }
 
                 // ── 转换按钮 ──
-                let converting = self.txt_import.as_ref().unwrap().converting;
+                let converting = self
+                    .txt_import
+                    .as_ref()
+                    .expect("txt_import state")
+                    .converting;
                 ui.horizontal(|ui| {
                     let btn_text = if converting {
                         self.i18n.t("txt.converting")
@@ -176,7 +180,7 @@ impl ReaderApp {
                         .add_enabled(!converting, egui::Button::new(btn_text))
                         .clicked()
                     {
-                        let state = self.txt_import.as_mut().unwrap();
+                        let state = self.txt_import.as_mut().expect("txt_import state");
                         state.converting = true;
                         state.error = None;
 

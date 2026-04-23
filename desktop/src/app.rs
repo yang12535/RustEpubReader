@@ -547,7 +547,6 @@ pub struct ReaderApp {
     pub sharing_status: Arc<Mutex<String>>,
     pub server_stop_flag: Arc<AtomicBool>,
     /// Held to keep the discovery listener thread alive.
-    #[allow(dead_code)]
     pub discovery_stop_flag: Arc<AtomicBool>,
     pub discovered_peers: Arc<Mutex<Vec<DiscoveredPeer>>>,
     pub pending_sync_updates: Arc<Mutex<Vec<reader_core::sharing::ProgressEntry>>>,
@@ -581,14 +580,10 @@ pub struct ReaderApp {
     pub book_config: Option<reader_core::library::BookConfig>,
     // ── Export ──
     pub show_export_dialog: bool,
-    #[allow(dead_code)]
-    pub export_book_id: Option<String>,
     // ── Stats ──
     pub show_stats: bool,
     pub reading_session_start: Option<u64>,
     // ── Auto-scroll ──
-    #[allow(dead_code)]
-    pub auto_scroll: bool,
     pub auto_scroll_speed: f32,
     // ── Library export ──
     pub export_library_path: Option<String>,
@@ -862,12 +857,10 @@ impl Default for ReaderApp {
             book_config: None,
             // Export
             show_export_dialog: false,
-            export_book_id: None,
             // Stats
             show_stats: false,
             reading_session_start: None,
             // Auto-scroll
-            auto_scroll: false,
             auto_scroll_speed: 30.0,
             export_library_path: None,
             text_selection: None,
@@ -1397,14 +1390,6 @@ impl ReaderApp {
                     seconds: elapsed,
                 });
             }
-            cfg.save(&self.data_dir);
-        }
-    }
-
-    /// Save current book_config to disk.
-    #[allow(dead_code)]
-    pub fn save_book_config(&self) {
-        if let Some(cfg) = &self.book_config {
             cfg.save(&self.data_dir);
         }
     }

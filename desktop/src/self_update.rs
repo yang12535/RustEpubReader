@@ -111,31 +111,6 @@ pub fn perform_update(on_progress: Option<ProgressCallback>) -> Result<UpdateOut
     Ok(UpdateOutcome::UpdateLaunched)
 }
 
-/// 仅检查热补丁（版本号相同但二进制不同）。
-#[allow(dead_code)]
-pub fn check_hotfix_and_apply() -> Result<UpdateOutcome> {
-    if is_dev_build() {
-        return Ok(UpdateOutcome::UpToDate);
-    }
-
-    let current_tag = format!("v{CURRENT_VERSION}");
-    let matched = get_latest_release_asset()?;
-
-    if matched.tag_name != current_tag {
-        return Ok(UpdateOutcome::UpToDate);
-    }
-
-    if let Some(expected) = matched.sha256.as_deref() {
-        let self_hash = compute_file_sha256(&current_executable_path()?)?;
-        if !eq_hash(&self_hash, expected) {
-            start_update(&matched, None)?;
-            return Ok(UpdateOutcome::UpdateLaunched);
-        }
-    }
-
-    Ok(UpdateOutcome::UpToDate)
-}
-
 // ─── 内部实现 ──────────────────────────────────────────────────────
 
 fn eq_hash(a: &str, b: &str) -> bool {

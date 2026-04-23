@@ -204,7 +204,7 @@ impl ReaderApp {
                         });
 
                     // ── Status text ──
-                    let status = self.tts_status.lock().unwrap().clone();
+                    let status = self.tts_status.lock().expect("tts state lock").clone();
                     if !status.is_empty() {
                         ui.label(egui::RichText::new(&status).size(12.0).color(subtle_color));
                     }
@@ -266,7 +266,7 @@ impl ReaderApp {
         self.tts_paused = false;
         self.tts_pending_audio = None;
         self.tts_prefetch_audio = None;
-        *self.tts_status.lock().unwrap() = String::new();
+        *self.tts_status.lock().expect("tts state lock") = String::new();
     }
 
     /// Return the total number of blocks in the current chapter.
@@ -328,7 +328,8 @@ impl ReaderApp {
             // Chapter finished
             self.push_feedback_log("[TTS] chapter finished");
             self.tts_stop_playback();
-            *self.tts_status.lock().unwrap() = self.i18n.t("tts.chapter_done").to_string();
+            *self.tts_status.lock().expect("tts state lock") =
+                self.i18n.t("tts.chapter_done").to_string();
             return;
         }
         self.tts_current_block = next;
@@ -336,14 +337,15 @@ impl ReaderApp {
         // Check if we have prefetched audio for this block
         if let Some(prefetch) = self.tts_prefetch_audio.take() {
             if self.tts_prefetch_block == self.tts_current_block {
-                let data = prefetch.lock().unwrap().take();
+                let data = prefetch.lock().expect("tts state lock").take();
                 if let Some(bytes) = data {
                     // Prefetch ready — play immediately with no gap!
                     if let Some(sink) = self.tts_audio_sink.take() {
                         sink.stop();
                     }
                     if let Err(e) = self.tts_play_bytes(&bytes) {
-                        *self.tts_status.lock().unwrap() = format!("Play error: {}", e);
+                        *self.tts_status.lock().expect("tts state lock") =
+                            format!("Play error: {}", e);
                         self.tts_playing = false;
                     }
                     // Start prefetching the NEXT block
@@ -465,11 +467,11 @@ impl ReaderApp {
                             elapsed.as_secs_f64()
                         ),
                     );
-                    *audio_ready2.lock().unwrap() = Some(bytes);
+                    *audio_ready2.lock().expect("tts state lock") = Some(bytes);
                 }
                 Err(e) => {
                     crate::app::dbg_log(&logs, format!("[TTS] ERROR synthesis: {}", e));
-                    *status.lock().unwrap() = format!("TTS Error: {}", e);
+                    *status.lock().expect("tts state lock") = format!("TTS Error: {}", e);
                 }
             }
             if let Some(ctx) = ctx {
@@ -483,12 +485,12 @@ impl ReaderApp {
     /// Called each frame to check if pending TTS audio is ready.
     pub fn tts_poll_audio(&mut self) {
         if let Some(pending) = &self.tts_pending_audio {
-            let data = pending.lock().unwrap().take();
+            let data = pending.lock().expect("tts state lock").take();
             if let Some(bytes) = data {
                 self.tts_pending_audio = None;
                 // Play the audio
                 if let Err(e) = self.tts_play_bytes(&bytes) {
-                    *self.tts_status.lock().unwrap() = format!("Play error: {}", e);
+                    *self.tts_status.lock().expect("tts state lock") = format!("Play error: {}", e);
                     self.tts_playing = false;
                 }
             }
@@ -506,7 +508,7 @@ impl ReaderApp {
         std::mem::forget(_stream);
         let sink = Arc::new(sink);
         self.tts_audio_sink = Some(sink);
-        *self.tts_status.lock().unwrap() = self.i18n.t("tts.playing").to_string();
+        *self.tts_status.lock().expect("tts state lock") = self.i18n.t("tts.playing").to_string();
         Ok(())
     }
 }

@@ -501,8 +501,6 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_getTranslations(
 
 struct SharingServer {
     stop_flag: Arc<AtomicBool>,
-    #[allow(dead_code)]
-    addr: String,
 }
 
 static SHARING_SERVER: Lazy<Mutex<Option<SharingServer>>> = Lazy::new(|| Mutex::new(None));
@@ -658,7 +656,6 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_startSharingServer
                 });
                 *guard = Some(SharingServer {
                     stop_flag: stop_flag.clone(),
-                    addr: resolved_addr.clone(),
                 });
             }
 
@@ -1724,7 +1721,9 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_collectCscSamples(
             None => continue,
         };
         let block_text: String = match block {
-            ContentBlock::Paragraph { spans, .. } => spans.iter().map(|s| s.text.as_str()).collect(),
+            ContentBlock::Paragraph { spans, .. } => {
+                spans.iter().map(|s| s.text.as_str()).collect()
+            }
             ContentBlock::Heading { spans, .. } => spans.iter().map(|s| s.text.as_str()).collect(),
             _ => continue,
         };

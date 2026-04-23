@@ -5,13 +5,11 @@ import android.net.Uri
 import android.net.wifi.WifiManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhongbai233.epub.reader.model.*
@@ -24,7 +22,6 @@ import com.zhongbai233.epub.reader.util.UpdateChecker
 import com.zhongbai233.epub.reader.tts.TtsManager
 import com.zhongbai233.epub.reader.csc.CscEngine
 import com.zhongbai233.epub.reader.csc.CorrectionInfo
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -1128,13 +1125,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun ttsTogglePause() {
         ttsManager.togglePause()
-    }
-
-    fun ttsToggleBar() {
-        showTtsBar = !showTtsBar
-        if (!showTtsBar) {
-            ttsManager.stop()
-        }
     }
 
     fun ttsCloseTtsBar() {

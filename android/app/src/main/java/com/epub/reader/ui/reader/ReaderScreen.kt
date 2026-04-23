@@ -1,68 +1,34 @@
 ﻿package com.zhongbai233.epub.reader.ui.reader
-import android.util.Log
 
 
 import android.app.Activity
-import android.graphics.BitmapFactory
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalTextToolbar
@@ -71,43 +37,23 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import com.zhongbai233.epub.reader.util.FontItem
 import java.io.File
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.style.LineHeightStyle
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import java.util.Collections
-import java.util.LinkedHashMap
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zhongbai233.epub.reader.model.*
 import com.zhongbai233.epub.reader.i18n.I18n
 import com.zhongbai233.epub.reader.csc.CorrectionStatus
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
-import eu.wewox.pagecurl.ExperimentalPageCurlApi
-import eu.wewox.pagecurl.config.PageCurlConfig
-import eu.wewox.pagecurl.config.rememberPageCurlConfig
-import eu.wewox.pagecurl.page.PageCurl
-import eu.wewox.pagecurl.page.rememberPageCurlState
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import java.net.URI
-import kotlin.math.absoluteValue
-import kotlin.math.ceil
 
 
 /**
@@ -696,9 +642,7 @@ fun ReaderScreen(
             )
         }
 
-        // 书签下拉指示器状态
-        var bookmarkPullOffset by remember { mutableFloatStateOf(0f) }
-        val bookmarkThreshold = with(LocalDensity.current) { 100.dp.toPx() }
+        // 书签下拉提示
         var bookmarkSnackText by remember { mutableStateOf<String?>(null) }
 
         // Snackbar 显示
