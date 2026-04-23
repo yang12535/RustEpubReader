@@ -774,6 +774,10 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun goToChapter(index: Int) {
         val book = currentBook ?: return
+        if (reviewChapterIndices.contains(index)) {
+            openReviewPanel(index)
+            return
+        }
         val target = index.coerceIn(0, book.chapters.size - 1)
         if (target != currentChapter) {
             previousChapter = currentChapter
@@ -807,6 +811,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 next++
             }
             if (next < book.chapters.size) {
+                if (currentChapter != next) {
+                    previousChapter = currentChapter
+                }
                 currentChapter = next
                 currentPage = 0
                 saveProgress()
@@ -827,6 +834,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 prev--
             }
             if (prev >= 0) {
+                if (currentChapter != prev) {
+                    previousChapter = currentChapter
+                }
                 currentChapter = prev
                 currentPage = 0
                 saveProgress()
@@ -841,6 +851,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     fun openReviewPanel(chapterIndex: Int) {
         showReviewPanel = true
         reviewPanelChapter = chapterIndex
+    }
+
+    fun openReviewPanelForCurrentChapter() {
+        val reviewCh = chapterReviews[currentChapter] ?: return
+        showReviewPanel = true
+        reviewPanelChapter = reviewCh
     }
 
     fun closeReviewPanel() {

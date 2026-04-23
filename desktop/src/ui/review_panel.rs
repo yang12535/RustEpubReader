@@ -23,9 +23,7 @@ fn estimate_block_height(
     content_width: f32,
 ) -> f32 {
     match block {
-        reader_core::epub::ContentBlock::Heading {
-            level, spans, ..
-        } => {
+        reader_core::epub::ContentBlock::Heading { level, spans, .. } => {
             let text: String = spans.iter().map(|s| s.text.as_str()).collect();
             let size = match level {
                 1 => 18.0,
@@ -99,7 +97,7 @@ impl ReaderApp {
         };
 
         let screen_rect = ctx.screen_rect();
-        let panel_width = (screen_rect.width() * 0.42).max(360.0).min(500.0);
+        let panel_width = (screen_rect.width() * 0.42).clamp(360.0, 500.0);
         let close = Cell::new(false);
 
         // ── Compute anchor scroll offset (only on the frame the panel opens) ──
@@ -162,111 +160,99 @@ impl ReaderApp {
                 let content_rect = panel_rect.shrink2(egui::vec2(margin, margin));
                 ui.set_clip_rect(panel_rect);
 
-                ui.allocate_new_ui(
-                    egui::UiBuilder::new().max_rect(content_rect),
-                    |ui| {
-                        // Header
-                        ui.horizontal(|ui| {
-                            ui.heading(self.i18n.t("review.panel_title"));
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if ui.button("✕").clicked() {
-                                        close.set(true);
-                                    }
-                                },
-                            );
+                ui.allocate_new_ui(egui::UiBuilder::new().max_rect(content_rect), |ui| {
+                    // Header
+                    ui.horizontal(|ui| {
+                        ui.heading(self.i18n.t("review.panel_title"));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.button("✕").clicked() {
+                                close.set(true);
+                            }
                         });
-                        ui.separator();
+                    });
+                    ui.separator();
 
-                        // Chapter title
-                        ui.label(
-                            egui::RichText::new(&chapter.title)
-                                .size(14.0)
-                                .color(egui::Color32::GRAY),
-                        );
-                        ui.add_space(8.0);
+                    // Chapter title
+                    ui.label(
+                        egui::RichText::new(&chapter.title)
+                            .size(14.0)
+                            .color(egui::Color32::GRAY),
+                    );
+                    ui.add_space(8.0);
 
-                        // Scrollable content
-                        let mut scroll_area = egui::ScrollArea::vertical();
-                        if let Some(y) = scroll_offset {
-                            scroll_area = scroll_area.vertical_scroll_offset(y);
-                        }
-                        scroll_area.show(ui, |ui| {
-                            for block in &chapter.blocks {
-                                match block {
-                                    reader_core::epub::ContentBlock::Heading {
-                                        level,
-                                        spans,
-                                        ..
-                                    } => {
-                                        let text: String =
-                                            spans.iter().map(|s| s.text.as_str()).collect();
-                                        let size = match level {
-                                            1 => 18.0,
-                                            2 => 16.0,
-                                            _ => 14.0,
-                                        };
-                                        ui.label(
-                                            egui::RichText::new(&text).size(size).strong(),
-                                        );
-                                        ui.add_space(6.0);
-                                    }
-                                    reader_core::epub::ContentBlock::Paragraph { spans, .. } => {
-                                        let text: String =
-                                            spans.iter().map(|s| s.text.as_str()).collect();
-                                        if !text.trim().is_empty() {
-                                            // Render spans with link support
-                                            ui.horizontal_wrapped(|ui| {
-                                                for span in spans {
-                                                    let mut label = egui::RichText::new(&span.text)
-                                                        .size(self.font_size);
+                    // Scrollable content
+                    let mut scroll_area = egui::ScrollArea::vertical();
+                    if let Some(y) = scroll_offset {
+                        scroll_area = scroll_area.vertical_scroll_offset(y);
+                    }
+                    scroll_area.show(ui, |ui| {
+                        for block in &chapter.blocks {
+                            match block {
+                                reader_core::epub::ContentBlock::Heading {
+                                    level, spans, ..
+                                } => {
+                                    let text: String =
+                                        spans.iter().map(|s| s.text.as_str()).collect();
+                                    let size = match level {
+                                        1 => 18.0,
+                                        2 => 16.0,
+                                        _ => 14.0,
+                                    };
+                                    ui.label(egui::RichText::new(&text).size(size).strong());
+                                    ui.add_space(6.0);
+                                }
+                                reader_core::epub::ContentBlock::Paragraph { spans, .. } => {
+                                    let text: String =
+                                        spans.iter().map(|s| s.text.as_str()).collect();
+                                    if !text.trim().is_empty() {
+                                        // Render spans with link support
+                                        ui.horizontal_wrapped(|ui| {
+                                            for span in spans {
+                                                let mut label = egui::RichText::new(&span.text)
+                                                    .size(self.font_size);
+                                                if span.link_url.is_some() {
+                                                    label = label
+                                                        .color(egui::Color32::from_rgb(30, 80, 200))
+                                                        .underline();
+                                                }
+                                                let resp = ui.add(egui::Label::new(label).sense(
                                                     if span.link_url.is_some() {
-                                                        label = label
-                                                            .color(egui::Color32::from_rgb(
-                                                                30, 80, 200,
-                                                            ))
-                                                            .underline();
-                                                    }
-                                                    let resp = ui.add(egui::Label::new(label).sense(
-                                                        if span.link_url.is_some() {
-                                                            egui::Sense::click()
+                                                        egui::Sense::click()
+                                                    } else {
+                                                        egui::Sense::hover()
+                                                    },
+                                                ));
+                                                if resp.clicked() {
+                                                    if let Some(url) = &span.link_url {
+                                                        let url = url.trim();
+                                                        if url.starts_with('#') || url.is_empty() {
+                                                            // "Back to main" link — close panel
+                                                            close.set(true);
                                                         } else {
-                                                            egui::Sense::hover()
-                                                        },
-                                                    ));
-                                                    if resp.clicked() {
-                                                        if let Some(url) = &span.link_url {
-                                                            let url = url.trim();
-                                                            if url.starts_with('#') || url.is_empty() {
-                                                                // "Back to main" link — close panel
-                                                                close.set(true);
-                                                            } else {
-                                                                // External or other internal link
-                                                                ctx.open_url(
-                                                                    egui::OpenUrl::new_tab(url),
-                                                                );
-                                                            }
+                                                            // External or other internal link
+                                                            ctx.open_url(egui::OpenUrl::new_tab(
+                                                                url,
+                                                            ));
                                                         }
                                                     }
                                                 }
-                                            });
-                                            ui.add_space(4.0);
-                                        }
-                                    }
-                                    reader_core::epub::ContentBlock::Separator => {
-                                        ui.separator();
+                                            }
+                                        });
                                         ui.add_space(4.0);
                                     }
-                                    reader_core::epub::ContentBlock::BlankLine => {
-                                        ui.add_space(self.font_size * 0.5);
-                                    }
-                                    _ => {}
                                 }
+                                reader_core::epub::ContentBlock::Separator => {
+                                    ui.separator();
+                                    ui.add_space(4.0);
+                                }
+                                reader_core::epub::ContentBlock::BlankLine => {
+                                    ui.add_space(self.font_size * 0.5);
+                                }
+                                _ => {}
                             }
-                        });
-                    },
-                );
+                        }
+                    });
+                });
             });
 
         // Close on backdrop click (skip the frame it was just opened)

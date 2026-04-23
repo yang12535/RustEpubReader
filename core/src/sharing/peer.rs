@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 use super::crypto;
-use super::dbg_log;
 use super::protocol::*;
 use crate::{base64_decode, base64_encode, now_secs};
 
@@ -1332,7 +1331,7 @@ mod tests {
 
         let books_dir_str = books_dir.to_string_lossy().to_string();
         let external_str = external.to_string_lossy().to_string();
-        let books = list_local_books(&books_dir_str, &[external_str.clone()]);
+        let books = list_local_books(&books_dir_str, std::slice::from_ref(&external_str));
 
         assert_eq!(books.len(), 1);
         assert_eq!(

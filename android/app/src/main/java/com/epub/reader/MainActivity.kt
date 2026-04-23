@@ -348,7 +348,7 @@ private fun MainContent(vm: ReaderViewModel) {
 
                     // 段评面板
                     if (vm.showReviewPanel && vm.reviewPanelChapter != null) {
-                        val reviewCh = book.chapters.getOrNull(vm.reviewPanelChapter!!)
+                        val reviewCh = vm.reviewPanelChapter?.let { book.chapters.getOrNull(it) }
                         if (reviewCh != null) {
                             ReviewPanel(
                                 chapterTitle = reviewCh.title,

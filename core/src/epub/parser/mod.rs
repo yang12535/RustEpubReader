@@ -180,7 +180,10 @@ impl EpubBook {
                 review_chapter_indices.insert(idx);
                 let base_title = &ch.title[..ch.title.len() - REVIEW_SUFFIX.len()];
                 // Match to the Nth main chapter with the same title
-                let review_count = chapters[..idx].iter().filter(|c| c.title == ch.title).count();
+                let review_count = chapters[..idx]
+                    .iter()
+                    .filter(|c| c.title == ch.title)
+                    .count();
                 if let Some(main_idx) = chapters
                     .iter()
                     .enumerate()

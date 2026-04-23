@@ -1010,16 +1010,20 @@ impl ReaderApp {
                 || lowered.starts_with("tel:")
             {
                 ui.ctx().open_url(egui::OpenUrl::new_tab(url));
-            } else if url.starts_with('#') {
-                let anchor = &url[1..];
+            } else if let Some(anchor) = url.strip_prefix('#') {
                 if let Some(book) = &self.book {
                     if let Some(chapter) = book.chapters.get(self.current_chapter) {
-                        if let Some(block_idx) = chapter.blocks.iter().position(|block| {
-                            match block {
-                                ContentBlock::Heading { anchor_id: Some(id), .. } => id == anchor,
-                                ContentBlock::Paragraph { anchor_id: Some(id), .. } => id == anchor,
-                                _ => false,
-                            }
+                        if let Some(block_idx) = chapter.blocks.iter().position(|block| match block
+                        {
+                            ContentBlock::Heading {
+                                anchor_id: Some(id),
+                                ..
+                            } => id == anchor,
+                            ContentBlock::Paragraph {
+                                anchor_id: Some(id),
+                                ..
+                            } => id == anchor,
+                            _ => false,
                         }) {
                             if self.scroll_mode {
                                 let available_width = ui.available_width();
@@ -1075,7 +1079,11 @@ impl ReaderApp {
                 };
                 if let Some(idx) = target_idx {
                     // Check if target is a review chapter (段评) — show overlay instead of navigating
-                    if self.book.as_ref().map_or(false, |b| b.review_chapter_indices.contains(&idx)) {
+                    if self
+                        .book
+                        .as_ref()
+                        .is_some_and(|b| b.review_chapter_indices.contains(&idx))
+                    {
                         self.show_review_panel = true;
                         self.review_panel_chapter = Some(idx);
                         self.review_panel_anchor = url.split('#').nth(1).map(|s| s.to_string());
@@ -1198,7 +1206,11 @@ impl ReaderApp {
                             for (idx, galley, rect, _) in &block_galleys {
                                 if pos.y < rect.min.y {
                                     // Above this block → first char
-                                    if best.is_none() || *idx < best.unwrap().0 {
+                                    if let Some((best_idx, _)) = best {
+                                        if *idx < best_idx {
+                                            best = Some((*idx, 0));
+                                        }
+                                    } else {
                                         best = Some((*idx, 0));
                                     }
                                     break;
@@ -1603,8 +1615,7 @@ impl ReaderApp {
         }
 
         // ── Floating note popup for clicked highlight ──
-        if self.clicked_highlight_id.is_some() {
-            let hl_id = self.clicked_highlight_id.clone().unwrap();
+        if let Some(hl_id) = self.clicked_highlight_id.clone() {
             let popup_pos = self.hl_note_toolbar_pos;
 
             let note_toolbar_id = egui::Id::new("hl_note_toolbar");

@@ -224,7 +224,7 @@ internal fun ContentBlockView(
                             }
                         }
                     }
-                    .pointerInput(annotated, onLinkClick, cscMode, cscBlockCorrections) {
+                    .pointerInput(block, onLinkClick, cscMode, cscBlockCorrections) {
                         awaitEachGesture {
                             val down = awaitFirstDown(pass = PointerEventPass.Initial, requireUnconsumed = false)
                             val up = waitForUpOrCancellation(pass = PointerEventPass.Initial) ?: return@awaitEachGesture
@@ -352,7 +352,7 @@ internal fun ContentBlockView(
                             }
                         }
                     }
-                    .pointerInput(annotated, onLinkClick, cscMode, cscBlockCorrections) {
+                    .pointerInput(block, onLinkClick, cscMode, cscBlockCorrections) {
                         awaitEachGesture {
                             val down = awaitFirstDown(pass = PointerEventPass.Initial, requireUnconsumed = false)
                             val up = waitForUpOrCancellation(pass = PointerEventPass.Initial) ?: return@awaitEachGesture

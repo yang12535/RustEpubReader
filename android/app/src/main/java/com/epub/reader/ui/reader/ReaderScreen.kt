@@ -822,11 +822,17 @@ fun ReaderScreen(
                 onPrevChapter = {
                     if (currentChapter > 0) {
                         startAtLastPageRef[0] = true
-                        onChapterChange(currentChapter - 1)
+                        var prev = currentChapter - 1
+                        while (prev >= 0 && reviewChapterIndices.contains(prev)) prev--
+                        if (prev >= 0) onChapterChange(prev)
                     }
                 },
                 onNextChapter = {
-                    if (currentChapter < book.chapters.size - 1) onChapterChange(currentChapter + 1)
+                    if (currentChapter < book.chapters.size - 1) {
+                        var next = currentChapter + 1
+                        while (next < book.chapters.size && reviewChapterIndices.contains(next)) next++
+                        if (next < book.chapters.size) onChapterChange(next)
+                    }
                 },
                 onToggleControls = {
                     if (!showSettingsSheet) {
