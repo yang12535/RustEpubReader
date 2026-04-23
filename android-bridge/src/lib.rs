@@ -146,6 +146,16 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_openBook(
         Err(_) => return std::ptr::null_mut(),
     };
 
+    let chapter_reviews: Vec<serde_json::Value> = book
+        .chapter_reviews
+        .iter()
+        .map(|(&main, &review)| serde_json::json!({ "main": main, "review": review }))
+        .collect();
+    let review_chapter_indices: Vec<usize> = {
+        let mut v: Vec<usize> = book.review_chapter_indices.iter().copied().collect();
+        v.sort_unstable();
+        v
+    };
     let json = serde_json::json!({
         "title": book.title,
         "chapterCount": book.chapters.len(),
@@ -154,6 +164,8 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_openBook(
             "chapterIndex": t.chapter_index,
         })).collect::<Vec<_>>(),
         "hasCover": book.cover_data.is_some(),
+        "chapterReviews": chapter_reviews,
+        "reviewChapterIndices": review_chapter_indices,
     });
 
     jni_string_or_null!(env, json.to_string())
