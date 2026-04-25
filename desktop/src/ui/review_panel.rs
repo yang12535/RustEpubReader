@@ -25,7 +25,7 @@ fn parse_review_card(text: &str) -> Option<ReviewCard> {
     let rest = trimmed[dot_pos + 1..].trim();
 
     // Split by " | " or " ｜ "
-    let parts: Vec<&str> = rest.split(|c: char| c == '|' || c == '｜').collect();
+    let parts: Vec<&str> = rest.split(['|', '｜']).collect();
     if parts.len() < 3 {
         return None;
     }
@@ -58,7 +58,9 @@ fn parse_review_card(text: &str) -> Option<ReviewCard> {
         return None;
     };
     let content = first_part[..author_pos].trim().to_string();
-    let author = first_part[author_pos + author_marker_len..].trim().to_string();
+    let author = first_part[author_pos + author_marker_len..]
+        .trim()
+        .to_string();
 
     Some(ReviewCard {
         index,
@@ -94,7 +96,16 @@ fn format_unix_timestamp(ts: u64) -> String {
     let month_days = [
         31,
         if is_leap_year(year) { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
     let mut month = 1;
     let mut day = days as u32;
@@ -107,11 +118,18 @@ fn format_unix_timestamp(ts: u64) -> String {
     }
     let hour = rem / 3600;
     let minute = (rem % 3600) / 60;
-    format!("{:04}-{:02}-{:02} {:02}:{:02}", year, month, day + 1, hour, minute)
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}",
+        year,
+        month,
+        day + 1,
+        hour,
+        minute
+    )
 }
 
 fn is_leap_year(y: u64) -> bool {
-    (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)
+    (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400)
 }
 
 /// Estimate how many lines of text fit in the given width.
@@ -133,9 +151,7 @@ fn estimate_block_height(
     content_width: f32,
 ) -> f32 {
     match block {
-        reader_core::epub::ContentBlock::Heading {
-            level, spans, ..
-        } => {
+        reader_core::epub::ContentBlock::Heading { level, spans, .. } => {
             let text: String = spans.iter().map(|s| s.text.as_str()).collect();
             let size = match level {
                 1 => 18.0,
@@ -231,7 +247,12 @@ impl ReaderApp {
         let scroll_offset = if was_just_opened && self.review_panel_show_all {
             self.review_panel_scroll_offset.take().or_else(|| {
                 self.review_panel_anchor.as_ref().and_then(|anchor| {
-                    compute_anchor_scroll_offset(&chapter.blocks, anchor, self.font_size, content_width)
+                    compute_anchor_scroll_offset(
+                        &chapter.blocks,
+                        anchor,
+                        self.font_size,
+                        content_width,
+                    )
                 })
             })
         } else {
@@ -287,233 +308,225 @@ impl ReaderApp {
                 let content_rect = panel_rect.shrink2(egui::vec2(margin, margin));
                 ui.set_clip_rect(panel_rect);
 
-                ui.allocate_new_ui(
-                    egui::UiBuilder::new().max_rect(content_rect),
-                    |ui| {
-                        // Header
-                        ui.horizontal(|ui| {
-                            ui.heading(self.i18n.t("review.panel_title"));
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if ui.button("✕").clicked() {
-                                        close.set(true);
-                                    }
-                                },
-                            );
+                ui.allocate_new_ui(egui::UiBuilder::new().max_rect(content_rect), |ui| {
+                    // Header
+                    ui.horizontal(|ui| {
+                        ui.heading(self.i18n.t("review.panel_title"));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.button("✕").clicked() {
+                                close.set(true);
+                            }
                         });
+                    });
 
-                        // Filter toggle (only when opened from an anchor)
-                        if self.review_panel_anchor.is_some() {
-                            ui.horizontal(|ui| {
-                                let label = if self.review_panel_show_all {
-                                    self.i18n.t("review.show_current_only")
-                                } else {
-                                    self.i18n.t("review.show_all")
-                                };
-                                if ui.button(label).clicked() {
-                                    self.review_panel_show_all = !self.review_panel_show_all;
-                                }
-                            });
-                        }
-                        ui.separator();
+                    // Filter toggle (only when opened from an anchor)
+                    if self.review_panel_anchor.is_some() {
+                        ui.horizontal(|ui| {
+                            let label = if self.review_panel_show_all {
+                                self.i18n.t("review.show_current_only")
+                            } else {
+                                self.i18n.t("review.show_all")
+                            };
+                            if ui.button(label).clicked() {
+                                self.review_panel_show_all = !self.review_panel_show_all;
+                            }
+                        });
+                    }
+                    ui.separator();
 
-                        // Chapter title
-                        ui.label(
-                            egui::RichText::new(&chapter.title)
-                                .size(14.0)
-                                .color(egui::Color32::GRAY),
-                        );
-                        ui.add_space(8.0);
+                    // Chapter title
+                    ui.label(
+                        egui::RichText::new(&chapter.title)
+                            .size(14.0)
+                            .color(egui::Color32::GRAY),
+                    );
+                    ui.add_space(8.0);
 
-                        // Scrollable content
-                        let mut scroll_area = egui::ScrollArea::vertical();
-                        if let Some(y) = scroll_offset {
-                            scroll_area = scroll_area.vertical_scroll_offset(y);
-                        }
-                        let anchor_filter = self.review_panel_anchor.clone();
-                        let show_all = self.review_panel_show_all;
+                    // Scrollable content
+                    let mut scroll_area = egui::ScrollArea::vertical();
+                    if let Some(y) = scroll_offset {
+                        scroll_area = scroll_area.vertical_scroll_offset(y);
+                    }
+                    let anchor_filter = self.review_panel_anchor.clone();
+                    let show_all = self.review_panel_show_all;
 
-                        // Build filtered block list: when filtering, find the Heading that
-                        // matches the anchor and include it plus all following non-Heading
-                        // blocks until the next Heading (paragraph group).
+                    // Build filtered block list: when filtering, find the Heading that
+                    // matches the anchor and include it plus all following non-Heading
+                    // blocks until the next Heading (paragraph group).
 
-                        let filtered_blocks: Vec<&reader_core::epub::ContentBlock> =
-                            if let Some(ref filter) = anchor_filter {
-                                if !show_all {
-                                    let mut result = Vec::new();
-                                    let mut in_group = false;
-                                    for block in &chapter.blocks {
-                                        match block {
-                                            reader_core::epub::ContentBlock::Heading {
-                                                anchor_id,
-                                                ..
-                                            } => {
-                                                if anchor_id.as_ref() == Some(filter) {
-                                                    in_group = true;
-                                                    result.push(block);
-                                                } else if in_group {
-                                                    // Reached next heading — stop
-                                                    break;
-                                                }
-                                                // Before match: skip headings
+                    let filtered_blocks: Vec<&reader_core::epub::ContentBlock> =
+                        if let Some(ref filter) = anchor_filter {
+                            if !show_all {
+                                let mut result = Vec::new();
+                                let mut in_group = false;
+                                for block in &chapter.blocks {
+                                    match block {
+                                        reader_core::epub::ContentBlock::Heading {
+                                            anchor_id,
+                                            ..
+                                        } => {
+                                            if anchor_id.as_ref() == Some(filter) {
+                                                in_group = true;
+                                                result.push(block);
+                                            } else if in_group {
+                                                // Reached next heading — stop
+                                                break;
                                             }
-                                            reader_core::epub::ContentBlock::Paragraph {
-                                                anchor_id,
-                                                ..
-                                            } => {
-                                                if !in_group && anchor_id.as_ref() == Some(filter) {
-                                                    in_group = true;
-                                                }
-                                                if in_group {
-                                                    result.push(block);
-                                                }
+                                            // Before match: skip headings
+                                        }
+                                        reader_core::epub::ContentBlock::Paragraph {
+                                            anchor_id,
+                                            ..
+                                        } => {
+                                            if !in_group && anchor_id.as_ref() == Some(filter) {
+                                                in_group = true;
                                             }
-                                            _ => {
-                                                if in_group {
-                                                    result.push(block);
-                                                }
+                                            if in_group {
+                                                result.push(block);
+                                            }
+                                        }
+                                        _ => {
+                                            if in_group {
+                                                result.push(block);
                                             }
                                         }
                                     }
-                                    // Fallback: show all blocks if no anchor match was found
-                                    if result.is_empty() {
-                                        chapter.blocks.iter().collect()
-                                    } else {
-                                        result
-                                    }
-                                } else {
+                                }
+                                // Fallback: show all blocks if no anchor match was found
+                                if result.is_empty() {
                                     chapter.blocks.iter().collect()
+                                } else {
+                                    result
                                 }
                             } else {
                                 chapter.blocks.iter().collect()
-                            };
+                            }
+                        } else {
+                            chapter.blocks.iter().collect()
+                        };
 
-                        scroll_area.show(ui, |ui| {
-                            for block in &filtered_blocks {
-                                match block {
-                                    reader_core::epub::ContentBlock::Heading {
-                                        level,
-                                        spans,
-                                        ..
-                                    } => {
-                                        let text: String =
-                                            spans.iter().map(|s| s.text.as_str()).collect();
-                                        let size = match level {
-                                            1 => 18.0,
-                                            2 => 16.0,
-                                            _ => 14.0,
-                                        };
-                                        ui.label(
-                                            egui::RichText::new(&text).size(size).strong(),
-                                        );
-                                        ui.add_space(6.0);
+                    scroll_area.show(ui, |ui| {
+                        for block in &filtered_blocks {
+                            match block {
+                                reader_core::epub::ContentBlock::Heading {
+                                    level, spans, ..
+                                } => {
+                                    let text: String =
+                                        spans.iter().map(|s| s.text.as_str()).collect();
+                                    let size = match level {
+                                        1 => 18.0,
+                                        2 => 16.0,
+                                        _ => 14.0,
+                                    };
+                                    ui.label(egui::RichText::new(&text).size(size).strong());
+                                    ui.add_space(6.0);
+                                }
+                                reader_core::epub::ContentBlock::Paragraph { spans, .. } => {
+                                    let text: String =
+                                        spans.iter().map(|s| s.text.as_str()).collect();
+                                    let trimmed = text.trim();
+                                    if trimmed.is_empty() {
+                                        continue;
                                     }
-                                    reader_core::epub::ContentBlock::Paragraph { spans, .. } => {
-                                        let text: String =
-                                            spans.iter().map(|s| s.text.as_str()).collect();
-                                        let trimmed = text.trim();
-                                        if trimmed.is_empty() {
-                                            continue;
-                                        }
 
-                                        // Try to render as review card
-                                        if let Some(card) = parse_review_card(&text) {
-                                            let card_bg = ui.visuals().extreme_bg_color;
-                                            let frame = egui::Frame::new()
-                                                .fill(card_bg)
-                                                .corner_radius(6.0)
-                                                .inner_margin(10.0)
-                                                .stroke(ui.visuals().widgets.noninteractive.bg_stroke);
-                                            frame.show(ui, |ui| {
-                                                ui.set_width(ui.available_width());
-                                                // Author
-                                                ui.horizontal(|ui| {
-                                                    ui.label(
-                                                        egui::RichText::new(&card.author)
-                                                            .size(13.0)
-                                                            .color(egui::Color32::from_rgb(64, 128, 200))
-                                                            .strong(),
-                                                    );
-                                                });
-                                                ui.add_space(4.0);
-                                                // Content
+                                    // Try to render as review card
+                                    if let Some(card) = parse_review_card(&text) {
+                                        let card_bg = ui.visuals().extreme_bg_color;
+                                        let frame = egui::Frame::new()
+                                            .fill(card_bg)
+                                            .corner_radius(6.0)
+                                            .inner_margin(10.0)
+                                            .stroke(ui.visuals().widgets.noninteractive.bg_stroke);
+                                        frame.show(ui, |ui| {
+                                            ui.set_width(ui.available_width());
+                                            // Author
+                                            ui.horizontal(|ui| {
                                                 ui.label(
-                                                    egui::RichText::new(&card.content)
-                                                        .size(14.0),
+                                                    egui::RichText::new(&card.author)
+                                                        .size(13.0)
+                                                        .color(egui::Color32::from_rgb(
+                                                            64, 128, 200,
+                                                        ))
+                                                        .strong(),
                                                 );
-                                                ui.add_space(6.0);
-                                                // Meta row: time + likes
-                                                ui.horizontal(|ui| {
-                                                    let time_str = format_timestamp(&card.timestamp);
-                                                    ui.label(
-                                                        egui::RichText::new(&time_str)
+                                            });
+                                            ui.add_space(4.0);
+                                            // Content
+                                            ui.label(egui::RichText::new(&card.content).size(14.0));
+                                            ui.add_space(6.0);
+                                            // Meta row: time + likes
+                                            ui.horizontal(|ui| {
+                                                let time_str = format_timestamp(&card.timestamp);
+                                                ui.label(
+                                                    egui::RichText::new(&time_str)
+                                                        .size(11.0)
+                                                        .color(egui::Color32::GRAY),
+                                                );
+                                                ui.with_layout(
+                                                    egui::Layout::right_to_left(
+                                                        egui::Align::Center,
+                                                    ),
+                                                    |ui| {
+                                                        ui.label(
+                                                            egui::RichText::new(format!(
+                                                                "❤ {}",
+                                                                card.likes
+                                                            ))
                                                             .size(11.0)
                                                             .color(egui::Color32::GRAY),
-                                                    );
-                                                    ui.with_layout(
-                                                        egui::Layout::right_to_left(egui::Align::Center),
-                                                        |ui| {
-                                                            ui.label(
-                                                                egui::RichText::new(format!("❤ {}", card.likes))
-                                                                    .size(11.0)
-                                                                    .color(egui::Color32::GRAY),
-                                                            );
-                                                        },
-                                                    );
-                                                });
+                                                        );
+                                                    },
+                                                );
                                             });
-                                            ui.add_space(8.0);
-                                        } else {
-                                            // Fallback: render as normal paragraph with link support
-                                            ui.horizontal_wrapped(|ui| {
-                                                for span in spans {
-                                                    let mut label = egui::RichText::new(&span.text)
-                                                        .size(self.font_size);
+                                        });
+                                        ui.add_space(8.0);
+                                    } else {
+                                        // Fallback: render as normal paragraph with link support
+                                        ui.horizontal_wrapped(|ui| {
+                                            for span in spans {
+                                                let mut label = egui::RichText::new(&span.text)
+                                                    .size(self.font_size);
+                                                if span.link_url.is_some() {
+                                                    label = label
+                                                        .color(egui::Color32::from_rgb(30, 80, 200))
+                                                        .underline();
+                                                }
+                                                let resp = ui.add(egui::Label::new(label).sense(
                                                     if span.link_url.is_some() {
-                                                        label = label
-                                                            .color(egui::Color32::from_rgb(
-                                                                30, 80, 200,
-                                                            ))
-                                                            .underline();
-                                                    }
-                                                    let resp = ui.add(egui::Label::new(label).sense(
-                                                        if span.link_url.is_some() {
-                                                            egui::Sense::click()
+                                                        egui::Sense::click()
+                                                    } else {
+                                                        egui::Sense::hover()
+                                                    },
+                                                ));
+                                                if resp.clicked() {
+                                                    if let Some(url) = &span.link_url {
+                                                        let url = url.trim();
+                                                        if url.starts_with('#') || url.is_empty() {
+                                                            close.set(true);
                                                         } else {
-                                                            egui::Sense::hover()
-                                                        },
-                                                    ));
-                                                    if resp.clicked() {
-                                                        if let Some(url) = &span.link_url {
-                                                            let url = url.trim();
-                                                            if url.starts_with('#') || url.is_empty() {
-                                                                close.set(true);
-                                                            } else {
-                                                                ctx.open_url(
-                                                                    egui::OpenUrl::new_tab(url),
-                                                                );
-                                                            }
+                                                            ctx.open_url(egui::OpenUrl::new_tab(
+                                                                url,
+                                                            ));
                                                         }
                                                     }
                                                 }
-                                            });
-                                            ui.add_space(4.0);
-                                        }
-                                    }
-                                    reader_core::epub::ContentBlock::Separator => {
-                                        ui.separator();
+                                            }
+                                        });
                                         ui.add_space(4.0);
                                     }
-                                    reader_core::epub::ContentBlock::BlankLine => {
-                                        ui.add_space(self.font_size * 0.5);
-                                    }
-                                    _ => {}
                                 }
+                                reader_core::epub::ContentBlock::Separator => {
+                                    ui.separator();
+                                    ui.add_space(4.0);
+                                }
+                                reader_core::epub::ContentBlock::BlankLine => {
+                                    ui.add_space(self.font_size * 0.5);
+                                }
+                                _ => {}
                             }
-                        });
-                    },
-                );
+                        }
+                    });
+                });
             });
 
         if close.get() {

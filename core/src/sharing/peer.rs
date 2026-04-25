@@ -1358,7 +1358,13 @@ mod tests {
             handle_client(&mut stream, &sd, &sd, &pin, ss, &[])
         });
 
-        let first = connect_to_peer(&addr, &mut client_store, &client_data, None, Some(server_pin));
+        let first = connect_to_peer(
+            &addr,
+            &mut client_store,
+            &client_data,
+            None,
+            Some(server_pin),
+        );
         assert!(
             first.is_ok(),
             "manual pairing without remote id failed: {:?}",

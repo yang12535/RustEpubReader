@@ -210,7 +210,11 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_getChapter(
                     "anchor_id": anchor_id,
                 })
             }
-            reader_core::epub::ContentBlock::Heading { level, spans, anchor_id } => {
+            reader_core::epub::ContentBlock::Heading {
+                level,
+                spans,
+                anchor_id,
+            } => {
                 serde_json::json!({
                     "type": "heading",
                     "level": level,
@@ -1727,7 +1731,9 @@ pub extern "C" fn Java_com_zhongbai233_epub_reader_RustBridge_collectCscSamples(
             None => continue,
         };
         let block_text: String = match block {
-            ContentBlock::Paragraph { spans, .. } => spans.iter().map(|s| s.text.as_str()).collect(),
+            ContentBlock::Paragraph { spans, .. } => {
+                spans.iter().map(|s| s.text.as_str()).collect()
+            }
             ContentBlock::Heading { spans, .. } => spans.iter().map(|s| s.text.as_str()).collect(),
             _ => continue,
         };
